@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Compras Centopex</title>
+<style>
+:root{--bg:#f6f3ee;--card:#fff;--ink:#2b2622;--mut:#6b625a;--line:#e3dcd2;--acc:#8c6239;--ok:#2e7d32;--warn:#b26a00;--bad:#b23b3b;--soft:#efe8dd}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{display:flex;gap:.8rem;align-items:center;flex-wrap:wrap;padding:14px 18px;border-bottom:1px solid var(--line);background:#fff;position:sticky;top:0;z-index:5}
+h1{font-size:1.15rem;margin:0 auto 0 0}button,select,input,textarea{font:inherit;color:inherit}
+button{padding:7px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;cursor:pointer}button.p{background:var(--acc);border-color:var(--acc);color:#fff}button:disabled{opacity:.55;cursor:default}
+select{padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:#fff}
+main{padding:16px 18px;max-width:1500px;margin:0 auto}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px}.card .k{color:var(--mut);font-size:.8rem}.card .v{font-size:1.15rem;font-weight:600}
+.status{color:var(--mut);font-size:.9rem}
+.grp{background:#fff;border:1px solid var(--line);border-radius:12px;margin-bottom:14px;overflow:hidden}
+.grp h2{font-size:1rem;margin:0;padding:10px 12px;background:var(--soft);display:flex;gap:.8rem;flex-wrap:wrap;align-items:center}
+.grp h2 small{color:var(--mut);font-weight:400}
+.tw{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:.86rem}th,td{padding:6px 8px;border-top:1px solid var(--line);text-align:left;white-space:nowrap}th{color:var(--mut);font-weight:500;background:#fbf9f6}
+td.r,th.r{text-align:right}td.d{white-space:normal;min-width:220px}
+.b{display:inline-block;padding:1px 7px;border-radius:999px;font-size:.75rem;border:1px solid var(--line)}
+.b.ok{color:var(--ok);border-color:#b9dcbb}.b.no{color:var(--warn);border-color:#f0d3a3}.b.nuevo{background:#fff3cd;border-color:#f0d78a}.b.bad{color:var(--bad);border-color:#efc1c1}
+body:not(.det) .xd{display:none}tr.nuevo td{background:#fffbea}.neg{color:var(--bad);font-weight:600}
+.bar{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin:0 0 12px}
+#ov{position:fixed;inset:0;background:rgba(246,243,238,.97);display:flex;align-items:center;justify-content:center;z-index:20}
+#lf{background:#fff;border:1px solid var(--line);border-radius:14px;padding:24px;width:min(340px,92vw);display:grid;gap:10px}#lf input{padding:9px;border:1px solid var(--line);border-radius:8px}
+#md{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:30}#md>div{background:#fff;border-radius:14px;padding:18px;width:min(720px,94vw);display:grid;gap:10px}
+#md textarea{width:100%;min-height:260px;padding:10px;border:1px solid var(--line);border-radius:8px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.85rem}
+</style></head><body>
+<div id="ov"><form id="lf"><h2 style="margin:0">Compras Centopex</h2><p style="margin:0;color:var(--mut)">Ingresá con tu usuario de director.</p>
+<input id="u" placeholder="Usuario" autocomplete="username" required><input id="c" type="password" placeholder="Clave" autocomplete="current-password" required>
+<button class="p" id="lb">Ingresar</button><p id="le" style="margin:0;color:var(--bad)"></p></form></div>
+<header><h1>Compras Centopex · ventas para pedir</h1>
+<button class="p" id="nov">Ver novedades</button>
+<button id="subf">Subir factura de proveedor</button><input type="file" id="ff" accept="application/pdf,image/*" hidden>
+<select id="fe"><option value="a pedir">A pedir</option><option value="pedido">Pedidas</option><option value="recibido">Recibidas</option><option value="stock">Stock propio</option><option value="">Todas</option></select>
+<select id="fc"><option value="">Cobradas y sin cobrar</option><option value="c">Solo cobradas</option><option value="n">Solo sin cobrar</option></select>
+<label class="status"><input type="checkbox" id="det"> Ver detalle</label>
+<span class="status" id="st"></span></header>
+<main>
+<div class="cards" id="cards"></div>
+<div id="seg"></div>
+<div class="bar"><button id="ped" class="p" disabled>Armar pedido con lo marcado</button><button id="rec" disabled>Marcar recibido</button><button id="vol" disabled>Volver a "a pedir"</button><span class="status" id="sel"></span></div>
+<div id="list"></div>
+</main>
+<div id="md"><div><h3 style="margin:0" id="mt">Pedido</h3><textarea id="mx"></textarea>
+<div class="bar"><label class="status">WhatsApp del proveedor <input id="mwan" placeholder="5491112345678" style="width:150px;padding:5px;border:1px solid var(--line);border-radius:6px"></label><button id="mwas" type="button">Guardar número</button><button id="mcopy">Copiar texto</button><button id="mtg">Mandármelo por Telegram</button><a id="mwa" target="_blank" rel="noopener"><button type="button">Abrir en WhatsApp</button></a><a id="mmail" target="_blank" rel="noopener"><button type="button">Abrir en mail</button></a><span style="flex:1"></span><button id="mcan">Cancelar</button><button class="p" id="mok">Marcar como pedido</button></div></div></div>
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+let S=null,D=[],NUE={},SEG=[],CONT={},FACS=[],UP=null,PROVS=['TODOPORCELANATOS','TUCSON','HOLSTEIN'];
+try{S=JSON.parse(sessionStorage.getItem('bot')||'null');}catch(e){}
+const API='https://script.google.com/macros/s/AKfycbzlIaEbpmjCZqHUJhNFgEP8hk2tO6fFvHJTtUMpLbbITNIYU_f90N-T6FPi-0AZprua7A/exec';
+const call=req=>fetch(API,{method:'POST',credentials:'omit',redirect:'follow',body:JSON.stringify(Object.assign({usuario:S.u,clave:S.c},req))}).then(r=>r.json()).catch(e=>{throw {code:'red',detalle:String(e&&e.message||e)};});
+const MSG={clave:'Usuario o clave incorrectos.',no_autorizado:'Solo directores pueden usar el bot.',bloqueado:'Demasiados intentos. Esperá 15 minutos.',cambiar_clave:'Primero cambiá tu clave inicial desde la app de caja.',red:'No se pudo conectar.'};
+const err=e=>MSG[e&&e.code]||('Error: '+((e&&(e.detalle||e.code))||''));
+const $$=n=>'$ '+Math.round(n||0).toLocaleString('es-AR');
+const pct=n=>(Math.round((n||0)*10)/10).toLocaleString('es-AR')+'%';
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+async function cargar(novedades){
+  $('nov').disabled=true;$('st').textContent=novedades?'Actualizando con Netegia… puede tardar un minuto.':'Cargando…';
+  try{const j=await call({action:'bot',op:'listar',actualizar:!!novedades,marcar:!!novedades});if(!j.ok)throw {code:j.error,detalle:j.detalle};
+    D=j.datos||[];SEG=j.seguimiento||[];CONT=j.contactos||{};FACS=j.facturas||[];NUE={};(j.nuevas||[]).forEach(k=>NUE[k]='nuevo');(j.cobradas||[]).forEach(k=>NUE[k]='cobrada');
+    D.forEach(r=>{if(r.proveedor&&PROVS.indexOf(r.proveedor)<0&&r.proveedor!=='Stock propio')PROVS.push(r.proveedor);});
+    $('ov').style.display='none';
+    const n=(j.nuevas||[]).length,c=(j.cobradas||[]).length;
+    $('st').textContent=novedades?(n||c?`${n} línea(s) nueva(s)${c?`, ${c} pasaron a cobradas`:''}${j.telegram?' · enviado a Telegram':''}.`:'No hay novedades desde la última revisión.'):'Últimos 45 días.';
+    pintar();}
+  catch(e){if(!S||!S.ok||['clave','cambiar_clave','bloqueado','no_autorizado'].indexOf(e&&e.code)>=0){try{sessionStorage.removeItem('bot');}catch(_){}if(S)S.ok=false;$('ov').style.display='flex';$('le').textContent=err(e);}$('st').textContent=err(e);}
+  finally{$('nov').disabled=false;}
+}
+function filtrar(){const fe=$('fe').value,fc=$('fc').value;return D.filter(r=>(!fe||r.estado===fe)&&(!fc||(fc==='c'?r.cobrado>=0.999:!(r.cobrado>=0.999))));}
+function pintar(){
+  pintarSeg();
+  const L=filtrar(),tot=k=>L.reduce((s,r)=>s+(r[k]||0),0),v=tot('venta'),co=L.filter(r=>!r.costoEstimado).reduce((s,r)=>s+r.costo,0),mg=tot('margen'),cm=tot('comision'),ct=tot('contribucion');
+  $('cards').innerHTML=[['Líneas',L.length],['Venta neta',$$(v)],['Costo',$$(co)],['Margen',$$(mg)+' · '+pct(v?mg/v*100:0)],['Comisiones',$$(cm)],['Contribución',$$(ct)+' · '+pct(v?ct/v*100:0)]].map(x=>`<div class="card"><div class="k">${x[0]}</div><div class="v">${x[1]}</div></div>`).join('');
+  const G={};L.forEach(r=>{const k=r.proveedor||'Proveedor a definir';(G[k]=G[k]||[]).push(r);});
+  const opts=sel=>['<option value="">Elegir…</option>'].concat(PROVS.map(p=>`<option${p===sel?' selected':''}>${esc(p)}</option>`)).concat(['<option value="__otro">Otro…</option>']).join('');
+  $('list').innerHTML=Object.keys(G).sort((a,b)=>a==='Proveedor a definir'?-1:b==='Proveedor a definir'?1:a.localeCompare(b)).map(p=>{const l=G[p],gv=l.reduce((s,r)=>s+r.venta,0),gc=l.reduce((s,r)=>s+r.contribucion,0);
+    return `<section class="grp"><h2><label><input type="checkbox" data-grp="${esc(p)}"> ${esc(p)}</label><small>${l.length} línea(s) · venta ${$$(gv)} · contribución ${$$(gc)} (${pct(gv?gc/gv*100:0)})</small></h2><div class="tw"><table>
+    <thead><tr><th></th><th>Fecha</th><th class="xd">Comprobante</th><th>Cliente</th><th class="xd">Vendedor</th><th>Artículo</th><th class="r">Cant.</th><th class="r">Venta</th><th class="r xd">Costo</th><th class="r">Margen</th><th class="r xd">Comisión</th><th class="r xd">Contribución</th><th>Cobro</th><th>Estado</th><th>Proveedor</th></tr></thead><tbody>
+    ${l.map(r=>`<tr class="${NUE[r.clave]?'nuevo':''}" data-k="${esc(r.clave)}"><td><input type="checkbox" data-sel="${esc(r.clave)}"${r.stockPropio?' disabled':''}></td><td>${esc(r.fecha.split('-').reverse().join('/'))}${NUE[r.clave]?` <span class="b nuevo">${NUE[r.clave]==='nuevo'?'Nuevo':'Cobrada'}</span>`:''}</td>
+      <td class="xd">${esc(r.comprobante)}${r.x?' <span class="b">X</span>':''}</td><td>${esc(r.cliente||'—')}</td><td class="xd">${esc(r.vendedor||'—')}</td><td class="d"><b>${esc(r.codigo)}</b> ${esc(r.descripcion)}</td>
+      <td class="r">${(r.cantidad||0).toLocaleString('es-AR')}</td><td class="r">${$$(r.venta)}</td><td class="r xd">${r.costoEstimado?'<span class="b bad">sin costo</span>':$$(r.costo)}</td>
+      <td class="r ${r.margen<0||(!r.costoEstimado&&r.margenPct<15)?'neg':''}">${r.costoEstimado?'—':$$(r.margen)+' · '+pct(r.margenPct)}</td><td class="r xd">${$$(r.comision)} <small>(${r.tasaComision*100}%)</small></td>
+      <td class="r xd ${r.contribucion<0?'neg':''}">${r.costoEstimado?'—':$$(r.contribucion)}</td>
+      <td>${r.cobrado==null?'<span class="b">sin datos</span>':r.cobrado>=0.999?'<span class="b ok">Cobrada</span>':`<span class="b no">${Math.round(r.cobrado*100)}%</span>`}</td>
+      <td>${r.stockPropio?'stock':`<select data-est="${esc(r.clave)}">${['a pedir','pedido','recibido'].map(s=>`<option${s===r.estado?' selected':''}>${s}</option>`).join('')}</select>`}${r.pedido?` <small>${esc(r.pedido)}</small>`:''}</td>
+      <td>${r.stockPropio?'Stock propio':`<select data-prov="${esc(r.codigo)}">${opts(r.proveedor)}</select>`}</td></tr>`).join('')}</tbody></table></div></section>`;}).join('')||'<p class="status">No hay líneas con este filtro.</p>';
+  selCambio();
+}
+function pintarSeg(){const box=$('seg');if(!SEG.length){box.innerHTML=facsHtml();return;}
+ const fila=p=>{const ls=p.claves.map(k=>D.find(r=>r.clave===k)).filter(Boolean);const co=ls.reduce((s,r)=>s+(r.costoEstimado?0:r.costo),0);const neto=p.facTotal?(p.facLetra==='A'?p.facTotal/1.21:p.facTotal):0;const dif=co&&neto?(neto-co)/co*100:null;
+  return `<tr><td><b>${esc(p.pedido)}</b></td><td>${esc(p.proveedor)}</td><td>${esc(p.fecha.split('-').reverse().join('/'))}</td><td class="r">${p.claves.length}</td><td class="r">${co?$$(co):'—'}</td>
+  <td>${p.facDoc?`${esc(p.facDoc)} · ${esc(p.facFecha.split('-').reverse().join('/'))} · ${$$(p.facTotal)}`:'<span class="status">sin factura</span>'}</td>
+  <td class="r ${dif!=null&&dif>3?'neg':''}">${dif==null?'—':'≈ '+(dif>0?'+':'')+pct(dif)}</td>
+  <td>${p.opDoc?`${esc(p.opDoc)} · ${$$(p.opTotal)}`:'<span class="status">sin pagar</span>'}</td>
+  <td><span class="b ${p.estado==='pagado'?'ok':p.estado==='facturado'?'no':''}">${p.estado}</span></td>
+  <td><button data-sp="${esc(p.pedido)}" data-spp="${esc(p.proveedor)}">Subir factura</button> ${p.facDoc?`<button data-desv="${esc(p.pedido)}" title="Si la factura o el pago no corresponden a este pedido">Desvincular</button>`:''}</td></tr>`;};
+ box.innerHTML=`<section class="grp"><h2>Pedidos en curso <small>la factura y el pago se detectan solos en Netegia (compras y órdenes de pago del proveedor)</small></h2><div class="tw"><table><thead><tr><th>Pedido</th><th>Proveedor</th><th>Fecha</th><th class="r">Líneas</th><th class="r">Costo est.</th><th>Factura</th><th class="r">Dif. vs costo</th><th>Pago (OP)</th><th>Estado</th><th></th></tr></thead><tbody>${SEG.map(fila).join('')}</tbody></table></div></section>`+facsHtml();}
+function facsHtml(){if(!FACS.length)return '';return `<section class="grp"><h2>Facturas subidas <small>quedan guardadas en Drive para cargarlas en Netegia</small></h2><div class="tw"><table><thead><tr><th>Fecha</th><th>Pedido</th><th>Proveedor</th><th>Archivo</th><th>Estado</th></tr></thead><tbody>${FACS.map(f=>`<tr><td>${esc(new Date(f.fecha).toLocaleDateString('es-AR'))}</td><td>${esc(f.pedido||'—')}</td><td>${esc(f.proveedor)}</td><td><a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.archivo)}</a></td><td>${esc(f.estado)}</td></tr>`).join('')}</tbody></table></div></section>`;}
+function marcadas(){return [...document.querySelectorAll('input[data-sel]:checked')].map(i=>D.find(r=>r.clave===i.dataset.sel)).filter(Boolean);}
+function selCambio(){const m=marcadas(),v=m.reduce((s,r)=>s+r.venta,0);$('sel').textContent=m.length?`${m.length} marcada(s) · venta ${$$(v)}${m.some(r=>!(r.cobrado>=0.999))?' · ojo: hay líneas sin cobrar':''}`:'';['ped','rec','vol'].forEach(id=>$(id).disabled=!m.length);}
+document.addEventListener('change',async e=>{const t=e.target;
+  if(t.dataset.est!=null){const r=D.find(x=>x.clave===t.dataset.est);if(!r)return;$('st').textContent='Guardando estado…';try{const j=await call({action:'bot',op:'estado',estado:t.value,claves:[r.clave],proveedor:r.proveedor||''});if(!j.ok)throw {code:j.error,detalle:j.detalle};r.estado=t.value;if(t.value==='pedido'&&j.pedido)r.pedido=j.pedido;$('st').textContent='Estado de '+r.codigo+': '+t.value+'.';pintar();}catch(x){$('st').textContent=err(x);pintar();}return;}
+  if(t.id==='ff'){const f=t.files[0];t.value='';if(!f||!UP)return;if(f.size>10e6){$('st').textContent='El archivo supera 10 MB.';return;}$('st').textContent='Subiendo '+f.name+'…';const rd=new FileReader();rd.onload=async()=>{try{const j=await call({action:'bot',op:'factura',pedido:UP.pedido||'',proveedor:UP.prov||'',nombre:f.name,mime:f.type||'application/pdf',datos:String(rd.result).split(',')[1]});if(!j.ok)throw {code:j.error,detalle:j.detalle};$('st').textContent='Factura guardada. Queda pendiente de cargar en Netegia.';cargar(false);}catch(x){$('st').textContent=err(x);}};rd.readAsDataURL(f);return;}
+  if(t.dataset.grp!=null){document.querySelectorAll('input[data-sel]').forEach(i=>{const r=D.find(x=>x.clave===i.dataset.sel);if(r&&(r.proveedor||'Proveedor a definir')===t.dataset.grp&&!i.disabled)i.checked=t.checked;});selCambio();return;}
+  if(t.dataset.sel!=null){selCambio();return;}
+  if(t.dataset.prov!=null){let p=t.value;if(p==='__otro'){p=(prompt('Nombre del proveedor')||'').trim().toUpperCase();if(!p){pintar();return;}if(PROVS.indexOf(p)<0)PROVS.push(p);}
+    $('st').textContent='Guardando proveedor…';try{const j=await call({action:'bot',op:'proveedor',codigo:t.dataset.prov,proveedor:p});if(!j.ok)throw {code:j.error,detalle:j.detalle};
+      D.forEach(r=>{if(r.codigo===t.dataset.prov&&r.estado==='a pedir')r.proveedor=p;});$('st').textContent='Proveedor guardado para '+t.dataset.prov+'.';pintar();}catch(x){$('st').textContent=err(x);}return;}
+  if(t.id==='fe'||t.id==='fc')pintar();});
+async function estado(nuevo,pedido,prov){const m=marcadas();if(!m.length)return;$('st').textContent='Guardando…';
+  try{const j=await call({action:'bot',op:'estado',estado:nuevo,claves:m.map(r=>r.clave),pedido:pedido||'',proveedor:prov||''});if(!j.ok)throw {code:j.error,detalle:j.detalle};
+    m.forEach(r=>{r.estado=nuevo;if(nuevo==='pedido')r.pedido=j.pedido;if(prov)r.proveedor=prov;});$('st').textContent=nuevo==='pedido'?'Pedido '+j.pedido+' registrado.':'Estado actualizado.';pintar();}
+  catch(x){$('st').textContent=err(x);}}
+$('ped').onclick=()=>{const m=marcadas();const provs=[...new Set(m.map(r=>r.proveedor||''))];
+  if(provs.length!==1||!provs[0]){alert('Marcá líneas de un solo proveedor (y que tengan proveedor elegido).');return;}
+  const ab=m.filter(r=>!r.x),xx=m.filter(r=>r.x),it={};const add=(arr,tag)=>arr.forEach(r=>{const k=tag+'|'+r.codigo;it[k]=it[k]||{tag,codigo:r.codigo,desc:r.descripcion,cant:0};it[k].cant+=r.cantidad;});add(ab,'A');add(xx,'X');
+  const lin=t=>Object.values(it).filter(i=>i.tag===t).map(i=>`- ${i.cant.toLocaleString('es-AR')} × ${i.codigo} · ${i.desc}`).join('\n');
+  let tx=`Hola, buen día. Pedido de ORGANIZACION CENTOPEX S.R.L. (CUIT 30-71882280-3):\n`;
+  if(ab.length)tx+=`\nCon factura A:\n${lin('A')}\n`;if(xx.length)tx+=`\nCon presupuesto (X):\n${lin('X')}\n`;
+  tx+=`\nPor favor confirmar disponibilidad, precio y fecha de entrega. Gracias.`;
+  $('mt').textContent='Pedido a '+provs[0];$('mx').value=tx;$('md').style.display='flex';$('md').dataset.prov=provs[0];
+  $('mwan').value=(CONT[provs[0]]||{}).wa||'';$('mwa').href='https://wa.me/'+$('mwan').value.replace(/\D/g,'')+'?text='+encodeURIComponent(tx);$('mmail').href='mailto:?subject='+encodeURIComponent('Pedido Centopex')+'&body='+encodeURIComponent(tx);};
+$('mcopy').onclick=()=>{$('mx').select();try{navigator.clipboard.writeText($('mx').value);}catch(e){document.execCommand('copy');}$('mcopy').textContent='Copiado';setTimeout(()=>$('mcopy').textContent='Copiar texto',1500);};
+$('mcan').onclick=()=>{$('md').style.display='none';};
+$('mok').onclick=async()=>{$('md').style.display='none';await estado('pedido','',$('md').dataset.prov);};
+$('rec').onclick=()=>{if(confirm('¿Marcar como recibidas las líneas elegidas?'))estado('recibido');};
+$('vol').onclick=()=>{if(confirm('¿Volver a "a pedir" las líneas elegidas?'))estado('a pedir');};
+$('nov').onclick=()=>cargar(true);
+$('subf').onclick=()=>{const p=(prompt('¿De qué proveedor es la factura?',PROVS[0])||'').trim().toUpperCase();if(!p)return;UP={pedido:'',prov:p};$('ff').click();};
+document.addEventListener('click',e=>{const x=e.target.closest('[data-sp]');if(!x)return;UP={pedido:x.dataset.sp,prov:x.dataset.spp};$('ff').click();});
+$('mwan').oninput=()=>{$('mwa').href='https://wa.me/'+$('mwan').value.replace(/\D/g,'')+'?text='+encodeURIComponent($('mx').value);};
+$('mwas').onclick=async()=>{const p=$('md').dataset.prov,n=$('mwan').value.replace(/\D/g,'');try{const j=await call({action:'bot',op:'contacto',proveedor:p,whatsapp:n});if(!j.ok)throw j;CONT[p]=Object.assign(CONT[p]||{},{wa:n});$('mwas').textContent='Guardado ✓';}catch(e){$('mwas').textContent='No se pudo';}setTimeout(()=>$('mwas').textContent='Guardar número',2000);};
+document.addEventListener('click',async e=>{const x=e.target.closest('[data-desv]');if(!x)return;if(!confirm('¿Desvincular la factura y el pago del pedido '+x.dataset.desv+'? Se vuelven a buscar al actualizar.'))return;try{await call({action:'bot',op:'desvincular',pedido:x.dataset.desv});}catch(_){}cargar(false);});
+$('det').onchange=()=>document.body.classList.toggle('det',$('det').checked);
+$('mtg').onclick=async()=>{$('mtg').disabled=true;try{const j=await call({action:'bot',op:'telegram',texto:$('mx').value,proveedor:$('md').dataset.prov});$('mtg').textContent=j.ok?'Enviado a tu Telegram ✓':('No se pudo: '+(j.detalle||j.error||''));}catch(e){$('mtg').textContent='No se pudo enviar';}setTimeout(()=>{$('mtg').textContent='Mandármelo por Telegram';$('mtg').disabled=false;},3000);};
+$('lf').onsubmit=e=>{e.preventDefault();S={u:$('u').value.trim().toLowerCase(),c:$('c').value};$('le').textContent='';$('lb').disabled=true;
+  cargar(false).then(()=>{$('lb').disabled=false;if($('ov').style.display==='none'){S.ok=true;try{sessionStorage.setItem('bot',JSON.stringify(S));}catch(x){}}});};
+if(S&&S.u){$('ov').style.display='none';cargar(false);}
+})();
+</script></body></html>
