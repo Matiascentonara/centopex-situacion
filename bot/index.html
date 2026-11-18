@@ -31,7 +31,7 @@ body:not(.det) .xd{display:none}tr.nuevo td{background:#fffbea}.neg{color:var(--
 <button class="p" id="lb">Ingresar</button><p id="le" style="margin:0;color:var(--bad)"></p></form></div>
 <header><h1>Compras Centopex · ventas para pedir</h1>
 <button class="p" id="nov">Ver novedades</button>
-<button id="subf">Subir factura de proveedor</button><input type="file" id="ff" accept="application/pdf,image/*" hidden>
+<button id="subf">Subir facturas</button><input type="file" id="ff" accept="application/pdf,image/*" multiple hidden>
 <select id="fe"><option value="a pedir">A pedir</option><option value="pedido">Pedidas</option><option value="recibido">Recibidas</option><option value="stock">Stock propio</option><option value="">Todas</option></select>
 <select id="fc"><option value="">Cobradas y sin cobrar</option><option value="c">Solo cobradas</option><option value="n">Solo sin cobrar</option></select>
 <label class="status"><input type="checkbox" id="det"> Ver detalle</label>
@@ -42,6 +42,7 @@ body:not(.det) .xd{display:none}tr.nuevo td{background:#fffbea}.neg{color:var(--
 <div class="bar"><button id="ped" class="p" disabled>Armar pedido con lo marcado</button><button id="rec" disabled>Marcar recibido</button><button id="vol" disabled>Volver a "a pedir"</button><span class="status" id="sel"></span></div>
 <div id="list"></div>
 </main>
+<div id="mm" style="position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:30"><div style="background:#fff;border-radius:14px;padding:18px;width:min(860px,95vw);max-height:90vh;overflow:auto;display:grid;gap:10px"><h3 style="margin:0">Subir facturas de proveedores</h3><div id="mmc"></div><div class="bar"><span class="status" id="mmst"></span><span style="flex:1"></span><button id="mmcan">Cancelar</button><button class="p" id="mmok">Subir y marcar como pedido</button></div></div></div>
 <div id="md"><div><h3 style="margin:0" id="mt">Pedido</h3><textarea id="mx"></textarea>
 <div class="bar"><label class="status">WhatsApp del proveedor <input id="mwan" placeholder="5491112345678" style="width:150px;padding:5px;border:1px solid var(--line);border-radius:6px"></label><button id="mwas" type="button">Guardar número</button><button id="mcopy">Copiar texto</button><button id="mtg">Mandármelo por Telegram</button><a id="mwa" target="_blank" rel="noopener"><button type="button">Abrir en WhatsApp</button></a><a id="mmail" target="_blank" rel="noopener"><button type="button">Abrir en mail</button></a><span style="flex:1"></span><button id="mcan">Cancelar</button><button class="p" id="mok">Marcar como pedido</button></div></div></div>
 <script>
@@ -101,8 +102,9 @@ function facsHtml(){if(!FACS.length)return '';return `<section class="grp"><h2>F
 function marcadas(){return [...document.querySelectorAll('input[data-sel]:checked')].map(i=>D.find(r=>r.clave===i.dataset.sel)).filter(Boolean);}
 function selCambio(){const m=marcadas(),v=m.reduce((s,r)=>s+r.venta,0);$('sel').textContent=m.length?`${m.length} marcada(s) · venta ${$$(v)}${m.some(r=>!(r.cobrado>=0.999))?' · ojo: hay líneas sin cobrar':''}`:'';['ped','rec','vol'].forEach(id=>$(id).disabled=!m.length);}
 document.addEventListener('change',async e=>{const t=e.target;
+  if(t.dataset.mfp!=null){MF[+t.dataset.mfp].prov=t.value;pintarMasivo();return;}
   if(t.dataset.est!=null){const r=D.find(x=>x.clave===t.dataset.est);if(!r)return;$('st').textContent='Guardando estado…';try{const j=await call({action:'bot',op:'estado',estado:t.value,claves:[r.clave],proveedor:r.proveedor||''});if(!j.ok)throw {code:j.error,detalle:j.detalle};r.estado=t.value;if(t.value==='pedido'&&j.pedido)r.pedido=j.pedido;$('st').textContent='Estado de '+r.codigo+': '+t.value+'.';pintar();}catch(x){$('st').textContent=err(x);pintar();}return;}
-  if(t.id==='ff'){const f=t.files[0];t.value='';if(!f||!UP)return;if(f.size>10e6){$('st').textContent='El archivo supera 10 MB.';return;}$('st').textContent='Subiendo '+f.name+'…';const rd=new FileReader();rd.onload=async()=>{try{const j=await call({action:'bot',op:'factura',pedido:UP.pedido||'',proveedor:UP.prov||'',nombre:f.name,mime:f.type||'application/pdf',datos:String(rd.result).split(',')[1]});if(!j.ok)throw {code:j.error,detalle:j.detalle};$('st').textContent='Factura guardada. Queda pendiente de cargar en Netegia.';cargar(false);}catch(x){$('st').textContent=err(x);}};rd.readAsDataURL(f);return;}
+  if(t.id==='ff'){if(UP&&UP.masivo){const fl=[...t.files];t.value='';if(fl.length)abrirMasivo(fl);return;}const f=t.files[0];t.value='';if(!f||!UP)return;if(f.size>10e6){$('st').textContent='El archivo supera 10 MB.';return;}$('st').textContent='Subiendo '+f.name+'…';const rd=new FileReader();rd.onload=async()=>{try{const j=await call({action:'bot',op:'factura',pedido:UP.pedido||'',proveedor:UP.prov||'',nombre:f.name,mime:f.type||'application/pdf',datos:String(rd.result).split(',')[1]});if(!j.ok)throw {code:j.error,detalle:j.detalle};$('st').textContent='Factura guardada. Queda pendiente de cargar en Netegia.';cargar(false);}catch(x){$('st').textContent=err(x);}};rd.readAsDataURL(f);return;}
   if(t.dataset.grp!=null){document.querySelectorAll('input[data-sel]').forEach(i=>{const r=D.find(x=>x.clave===i.dataset.sel);if(r&&(r.proveedor||'Proveedor a definir')===t.dataset.grp&&!i.disabled)i.checked=t.checked;});selCambio();return;}
   if(t.dataset.sel!=null){selCambio();return;}
   if(t.dataset.prov!=null){let p=t.value;if(p==='__otro'){p=(prompt('Nombre del proveedor')||'').trim().toUpperCase();if(!p){pintar();return;}if(PROVS.indexOf(p)<0)PROVS.push(p);}
@@ -116,10 +118,11 @@ async function estado(nuevo,pedido,prov){const m=marcadas();if(!m.length)return;
 $('ped').onclick=()=>{const m=marcadas();const provs=[...new Set(m.map(r=>r.proveedor||''))];
   if(provs.length!==1||!provs[0]){alert('Marcá líneas de un solo proveedor (y que tengan proveedor elegido).');return;}
   const ab=m.filter(r=>!r.x),xx=m.filter(r=>r.x),it={};const add=(arr,tag)=>arr.forEach(r=>{const k=tag+'|'+r.codigo;it[k]=it[k]||{tag,codigo:r.codigo,desc:r.descripcion,cant:0};it[k].cant+=r.cantidad;});add(ab,'A');add(xx,'X');
-  const lin=t=>Object.values(it).filter(i=>i.tag===t).map(i=>`- ${i.cant.toLocaleString('es-AR')} × ${i.codigo} · ${i.desc}`).join('\n');
-  let tx=`Hola, buen día. Pedido de ORGANIZACION CENTOPEX S.R.L. (CUIT 30-71882280-3):\n`;
-  if(ab.length)tx+=`\nCon factura A:\n${lin('A')}\n`;if(xx.length)tx+=`\nCon presupuesto (X):\n${lin('X')}\n`;
-  tx+=`\nPor favor confirmar disponibilidad, precio y fecha de entrega. Gracias.`;
+  const uni=d=>/pastina|adhesiv|pegament|bolsa|sinteplast|klaukol|weber|balde|sellador/i.test(d)?'u.':'m²';const fmtc=n=>(Math.round((+n||0)*100)/100).toFixed(2).replace('.',',');
+  const lin=t=>Object.values(it).filter(i=>i.tag===t).map((i,n)=>`${n+1}) ${fmtc(i.cant)} ${uni(i.desc)} — ${i.codigo} · ${i.desc}`).join('\n');
+  let tx=`PEDIDO CENTOPEX → ${provs[0]} · ${new Date().toLocaleDateString('es-AR')}\n`;
+  if(ab.length)tx+=`\nCON FACTURA A\n${lin('A')}\n`;if(xx.length)tx+=`\nCON PRESUPUESTO (X)\n${lin('X')}\n`;
+  tx+=`\nPor favor confirmar stock, precio y fecha de entrega. Gracias.`;
   $('mt').textContent='Pedido a '+provs[0];$('mx').value=tx;$('md').style.display='flex';$('md').dataset.prov=provs[0];
   $('mwan').value=(CONT[provs[0]]||{}).wa||'';$('mwa').href='https://wa.me/'+$('mwan').value.replace(/\D/g,'')+'?text='+encodeURIComponent(tx);$('mmail').href='mailto:?subject='+encodeURIComponent('Pedido Centopex')+'&body='+encodeURIComponent(tx);};
 $('mcopy').onclick=()=>{$('mx').select();try{navigator.clipboard.writeText($('mx').value);}catch(e){document.execCommand('copy');}$('mcopy').textContent='Copiado';setTimeout(()=>$('mcopy').textContent='Copiar texto',1500);};
@@ -128,7 +131,22 @@ $('mok').onclick=async()=>{$('md').style.display='none';await estado('pedido',''
 $('rec').onclick=()=>{if(confirm('¿Marcar como recibidas las líneas elegidas?'))estado('recibido');};
 $('vol').onclick=()=>{if(confirm('¿Volver a "a pedir" las líneas elegidas?'))estado('a pedir');};
 $('nov').onclick=()=>cargar(true);
-$('subf').onclick=()=>{const p=(prompt('¿De qué proveedor es la factura?',PROVS[0])||'').trim().toUpperCase();if(!p)return;UP={pedido:'',prov:p};$('ff').click();};
+let MF=[];
+function guessProv(n){n=String(n).toUpperCase();if(/TUCSON/.test(n))return 'TUCSON';if(/TODOPOR|TFAC-TP|(^|[^A-Z])TP([^A-Z]|$)/.test(n))return 'TODOPORCELANATOS';if(/HOLSTEIN/.test(n))return 'HOLSTEIN';return '';}
+function abrirMasivo(files){MF=files.map(f=>({f,prov:guessProv(f.name)}));pintarMasivo();$('mmst').textContent='';$('mm').style.display='flex';}
+function pintarMasivo(){const provs=[...new Set(MF.map(x=>x.prov).filter(Boolean))];
+  const filas=MF.map((x,i)=>`<tr><td>${esc(x.f.name)}</td><td class="r">${(x.f.size/1048576).toFixed(1)} MB</td><td><select data-mfp="${i}">${['<option value="">Elegir…</option>',...PROVS.map(p=>`<option${p===x.prov?' selected':''}>${esc(p)}</option>`)].join('')}</select></td></tr>`).join('');
+  const lineas=provs.map(p=>{const l=D.filter(r=>r.estado==='a pedir'&&(r.proveedor||'')===p);return `<h4 style="margin:10px 0 4px">${esc(p)} · ${l.length} venta(s) a pedir</h4>`+(l.length?l.map(r=>`<label style="display:block;padding:2px 0"><input type="checkbox" data-mfl="${esc(r.clave)}" checked> ${(r.cantidad||0).toLocaleString('es-AR')} · <b>${esc(r.codigo)}</b> ${esc(r.descripcion)} · ${esc(r.cliente||'')} · ${esc(r.comprobante)}</label>`).join(''):'<p class="status">No hay ventas a pedir de este proveedor.</p>');}).join('');
+  $('mmc').innerHTML=`<div class="tw"><table><thead><tr><th>Archivo</th><th class="r">Tamaño</th><th>Proveedor</th></tr></thead><tbody>${filas}</tbody></table></div><p class="status">Las ventas tildadas pasan a "pedido" junto con estas facturas. Destildá las que no correspondan.</p>${lineas}`;}
+$('mmcan').onclick=()=>{$('mm').style.display='none';};
+$('mmok').onclick=async()=>{if(!MF.length)return;if(MF.some(x=>!x.prov)){alert('Elegí el proveedor de cada factura.');return;}if(MF.some(x=>x.f.size>10e6)){alert('Hay archivos de más de 10 MB.');return;}
+  const marc=[...document.querySelectorAll('[data-mfl]:checked')].map(i=>i.dataset.mfl);$('mmok').disabled=true;let ok=0,er=0;
+  for(const p of [...new Set(MF.map(x=>x.prov))]){const fs=MF.filter(x=>x.prov===p);const cl=marc.filter(k=>{const r=D.find(x=>x.clave===k);return r&&r.proveedor===p;});let ped='';
+    if(cl.length){$('mmst').textContent='Marcando pedido de '+p+'…';try{const j=await call({action:'bot',op:'estado',estado:'pedido',claves:cl,proveedor:p,nota:'Facturas: '+fs.map(x=>x.f.name).join(', ')});if(j.ok){ped=j.pedido;cl.forEach(k=>{const r=D.find(x=>x.clave===k);if(r){r.estado='pedido';r.pedido=ped;}});}}catch(e){}}
+    for(const x of fs){$('mmst').textContent='Subiendo '+x.f.name+'…';try{const b64=await new Promise((res,rej)=>{const rd=new FileReader();rd.onload=()=>res(String(rd.result).split(',')[1]);rd.onerror=rej;rd.readAsDataURL(x.f);});const j=await call({action:'bot',op:'factura',pedido:ped,proveedor:p,nombre:x.f.name,mime:x.f.type||'application/pdf',datos:b64});j.ok?ok++:er++;}catch(e){er++;}}}
+  $('mmok').disabled=false;$('mm').style.display='none';MF=[];$('st').textContent=ok+' factura(s) subida(s)'+(er?', '+er+' con error':'')+'. Las ventas tildadas quedaron como pedido. Faltan cargar en Netegia.';cargar(false);};
+
+$('subf').onclick=()=>{UP={masivo:true};$('ff').click();};
 document.addEventListener('click',e=>{const x=e.target.closest('[data-sp]');if(!x)return;UP={pedido:x.dataset.sp,prov:x.dataset.spp};$('ff').click();});
 $('mwan').oninput=()=>{$('mwa').href='https://wa.me/'+$('mwan').value.replace(/\D/g,'')+'?text='+encodeURIComponent($('mx').value);};
 $('mwas').onclick=async()=>{const p=$('md').dataset.prov,n=$('mwan').value.replace(/\D/g,'');try{const j=await call({action:'bot',op:'contacto',proveedor:p,whatsapp:n});if(!j.ok)throw j;CONT[p]=Object.assign(CONT[p]||{},{wa:n});$('mwas').textContent='Guardado ✓';}catch(e){$('mwas').textContent='No se pudo';}setTimeout(()=>$('mwas').textContent='Guardar número',2000);};
