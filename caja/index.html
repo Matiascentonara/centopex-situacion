@@ -880,8 +880,6 @@ function calc(){
   $('tot-ing').textContent=fmt(a.totalIngresos);$('tot-egr').textContent=fmt(a.totalEgresos);
   $('r-teorico').textContent=fmt(a.teorico);$('r-contado').textContent=fmt(a.contado);
   $('r-dif').textContent=(a.diferencia>0?'+':'')+fmt(a.diferencia);
-  {const sis=num(($('saldo-sistema')||{}).value||'');let al=$('r-netegia');if(!al){al=el('p',{id:'r-netegia'});al.style.cssText='margin:.4rem 0 0;font-size:.9rem;font-weight:600';$('result').append(al);}
-   if(sis){const alt=num(($('saldo-inicial')||{}).value||'')+a.totalIngresos-a.totalEgresos;const dn=Math.round((sis-alt)*100)/100;al.textContent=Math.abs(dn)<1?'“Debería haber” = saldo de Netegia ('+fmt(sis)+'), coincide con el arqueo anterior + movimientos ✓':'“Debería haber” se toma de Netegia ('+fmt(sis)+'). El arqueo anterior + movimientos da '+fmt(alt)+' (diferencia '+(dn>0?'+':'')+fmt(dn)+'): revisá si el arqueo anterior se guardó sin algún movimiento.';al.style.color=Math.abs(dn)<1?'#2e7d32':'#8a6d3b';}else al.textContent='';}
   const res=$('result');res.classList.remove('ok','falt','sob');
   const any=a.contado>0||a.totalIngresos>0||a.totalEgresos>0;
   if(any){res.classList.add(a.estado);$('r-estado').textContent=a.estado==='ok'?'Caja sin diferencias':a.estado==='falt'?'Faltante de '+fmt(-a.diferencia):'Sobrante de '+fmt(a.diferencia);}else $('r-estado').textContent='Cargá el conteo';
