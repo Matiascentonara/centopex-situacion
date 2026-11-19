@@ -878,6 +878,8 @@ function calc(){
   $('tot-ing').textContent=fmt(a.totalIngresos);$('tot-egr').textContent=fmt(a.totalEgresos);
   $('r-teorico').textContent=fmt(a.teorico);$('r-contado').textContent=fmt(a.contado);
   $('r-dif').textContent=(a.diferencia>0?'+':'')+fmt(a.diferencia);
+  {const sis=num(($('saldo-sistema')||{}).value||'');let al=$('r-netegia');if(!al){al=el('p',{id:'r-netegia'});al.style.cssText='margin:.4rem 0 0;font-size:.9rem;font-weight:600';$('result').append(al);}
+   if(sis){const dn=Math.round((sis-a.teorico)*100)/100;al.textContent=Math.abs(dn)<1?'Netegia '+fmt(sis)+' · alineado con la app ✓':'Netegia '+fmt(sis)+' · diferencia app vs Netegia '+(dn>0?'+':'')+fmt(dn)+' → falta traer o sincronizar algún movimiento';al.style.color=Math.abs(dn)<1?'#2e7d32':'#b23b3b';}else al.textContent='';}
   const res=$('result');res.classList.remove('ok','falt','sob');
   const any=a.contado>0||a.totalIngresos>0||a.totalEgresos>0;
   if(any){res.classList.add(a.estado);$('r-estado').textContent=a.estado==='ok'?'Caja sin diferencias':a.estado==='falt'?'Faltante de '+fmt(-a.diferencia):'Sobrante de '+fmt(a.diferencia);}else $('r-estado').textContent='Cargá el conteo';
@@ -996,6 +998,7 @@ async function nxSyncEgresos(){
   NXSYNC=true;$('nx-egr-sync').disabled=true;$('nx-egr-status').textContent='Sincronizando con Netegia…';
   try{const j=await api('egresosNetegia',{empresa:nxEmpresa(),items});let ok=0,er=0,ya=0;
     (j.res||[]).forEach(r=>{const tr=document.querySelector('tr[data-clave="'+r.clave+'"]');if(!tr)return;tr.dataset.nx=r.ok?'ok':'error';tr.dataset.err=r.ok?'':(r.error||('HTTP '+r.code));r.ok?(r.yaEstaba?ya++:ok++):er++;nxEgrEstado(tr);});
+    try{const cj=$('nx-caja').value||'CAJA BENAVIDEZ';await nxSaldos(cj,today()+'T00:00');const sc=m=>{const c=NX.cajas.find(x=>x.cuenta===cj&&x.moneda===m);return c?c.saldo:null;};if(sc('ARS')!=null)$('saldo-sistema').value=String(sc('ARS')).replace('.',',');if(sc('USD')!=null&&$('usd-sistema'))$('usd-sistema').value=String(sc('USD')).replace('.',',');}catch(_){}
     dirty=true;calc();$('nx-egr-status').textContent=ok+' cargado(s) en Netegia'+(ya?', '+ya+' ya estaba(n)':'')+(er?', '+er+' con error':'')+'. Guardá el arqueo para dejar registrado el estado.';}
   catch(e){$('nx-egr-status').textContent=errMsg(e);}finally{NXSYNC=false;$('nx-egr-sync').disabled=false;}}
 $('nx-egr-sync').addEventListener('click',()=>{nxRef().then(nxSyncEgresos).catch(e=>{$('nx-egr-status').textContent=errMsg(e);});});
