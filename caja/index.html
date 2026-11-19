@@ -822,7 +822,8 @@ function collectUsd(){
   const ingresos=readRowsU('ing'),egresos=readRowsU('egr');
   const ti=ingresos.reduce((s,r)=>s+r.monto,0),te=egresos.reduce((s,r)=>s+r.monto,0);
   const saldoInicial=num($('usd-inicial').value),ss=$('usd-sistema').value.trim();
-  const teorico=saldoInicial+ti-te,diferencia=contado-teorico,tol=D.config.toleranciaUsd!=null?D.config.toleranciaUsd:1;
+  const sisU=ss?num(ss):0, pendIU=ingresos.filter(r=>r.nx!=='ok'&&!r.recibo).reduce((s,r)=>s+r.monto,0), pendEU=egresos.filter(r=>r.nx!=='ok').reduce((s,r)=>s+r.monto,0);
+  const teorico=sisU>0?Math.round((sisU+pendIU-pendEU)*100)/100:saldoInicial+ti-te,diferencia=contado-teorico,tol=D.config.toleranciaUsd!=null?D.config.toleranciaUsd:1;
   const any=contado>0||ti>0||te>0||saldoInicial>0;
   return {conteo,contado,ingresos,egresos,totalIngresos:ti,totalEgresos:te,saldoInicial,saldoSistema:ss===''?null:num(ss),teorico,diferencia,
     estado:!any?'vacio':Math.abs(diferencia)<=tol?'ok':diferencia<0?'falt':'sob'};
@@ -866,7 +867,8 @@ function collect(){
   const ingresos=readRows('ing'),egresos=readRows('egr');
   const ti=ingresos.reduce((s,r)=>s+r.monto,0),te=egresos.reduce((s,r)=>s+r.monto,0);
   const saldoInicial=num($('saldo-inicial').value),ss=$('saldo-sistema').value.trim();
-  const teorico=saldoInicial+ti-te,diferencia=contado-teorico,tol=D.config.tolerancia;
+  const sisN=ss?num(ss):0, pendI=ingresos.filter(r=>r.nx!=='ok'&&!r.recibo).reduce((s,r)=>s+r.monto,0), pendE=egresos.filter(r=>r.nx!=='ok').reduce((s,r)=>s+r.monto,0);
+  const teorico=sisN>0?Math.round((sisN+pendI-pendE)*100)/100:saldoInicial+ti-te,diferencia=contado-teorico,tol=D.config.tolerancia;
   const prev=D.arqueos.find(h=>h.id===CUR)||{};
   return {empresa:window.CAJA_EMP||'Centopex',id:CUR||($('fecha').value+'-'+Date.now()),creado:prev.creado||null,fecha:$('fecha').value,responsable:$('responsable').value.trim(),controlo:$('controlo').value.trim(),saldoInicial,saldoSistema:ss===''?null:num(ss),
     conteo,monedas,contado,ingresos,egresos,totalIngresos:ti,totalEgresos:te,teorico,diferencia,estado:Math.abs(diferencia)<=tol?'ok':diferencia<0?'falt':'sob',obs:$('obs').value.trim(),usd:collectUsd()};
@@ -879,7 +881,7 @@ function calc(){
   $('r-teorico').textContent=fmt(a.teorico);$('r-contado').textContent=fmt(a.contado);
   $('r-dif').textContent=(a.diferencia>0?'+':'')+fmt(a.diferencia);
   {const sis=num(($('saldo-sistema')||{}).value||'');let al=$('r-netegia');if(!al){al=el('p',{id:'r-netegia'});al.style.cssText='margin:.4rem 0 0;font-size:.9rem;font-weight:600';$('result').append(al);}
-   if(sis){const dn=Math.round((sis-a.teorico)*100)/100;al.textContent=Math.abs(dn)<1?'Netegia '+fmt(sis)+' · alineado con la app ✓':'Netegia '+fmt(sis)+' · diferencia app vs Netegia '+(dn>0?'+':'')+fmt(dn)+' → falta traer o sincronizar algún movimiento';al.style.color=Math.abs(dn)<1?'#2e7d32':'#b23b3b';}else al.textContent='';}
+   if(sis){const alt=num(($('saldo-inicial')||{}).value||'')+a.totalIngresos-a.totalEgresos;const dn=Math.round((sis-alt)*100)/100;al.textContent=Math.abs(dn)<1?'“Debería haber” = saldo de Netegia ('+fmt(sis)+'), coincide con el arqueo anterior + movimientos ✓':'“Debería haber” se toma de Netegia ('+fmt(sis)+'). El arqueo anterior + movimientos da '+fmt(alt)+' (diferencia '+(dn>0?'+':'')+fmt(dn)+'): revisá si el arqueo anterior se guardó sin algún movimiento.';al.style.color=Math.abs(dn)<1?'#2e7d32':'#8a6d3b';}else al.textContent='';}
   const res=$('result');res.classList.remove('ok','falt','sob');
   const any=a.contado>0||a.totalIngresos>0||a.totalEgresos>0;
   if(any){res.classList.add(a.estado);$('r-estado').textContent=a.estado==='ok'?'Caja sin diferencias':a.estado==='falt'?'Faltante de '+fmt(-a.diferencia):'Sobrante de '+fmt(a.diferencia);}else $('r-estado').textContent='Cargá el conteo';
