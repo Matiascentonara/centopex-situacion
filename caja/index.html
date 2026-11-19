@@ -1009,7 +1009,7 @@ async function nxSaldos(caja,desde){const j=await api('saldosNetegia',{empresa:n
 function nxLlenarCajas(){const sel=$('nx-caja');if(!NX)return;const actual=sel.value;const nombres=[...new Set(NX.cajas.map(c=>c.cuenta))].sort();sel.replaceChildren(...nombres.map(n=>el('option',{text:n,value:n})));sel.value=nombres.includes(actual)?actual:(nombres.includes('CAJA BENAVIDEZ')?'CAJA BENAVIDEZ':nombres[0]||'');}
 $('nx-traer').addEventListener('click',async()=>{
   const prev=ultimoArqueo(CUR);
-  const desde=prev&&prev.creado?nxLocal(prev.creado):(prev?prev.fecha+'T23:59':today()+'T00:00');
+  const desde=prev?String(prev.fecha||today()).slice(0,10)+'T00:00':today()+'T00:00';
   const caja=$('nx-caja').value||'CAJA BENAVIDEZ';
   $('nx-traer').disabled=true;$('nx-status').textContent='Consultando Netegia…';
   try{
@@ -1017,12 +1017,13 @@ $('nx-traer').addEventListener('click',async()=>{
     const s=m=>{const c=NX.cajas.find(x=>x.cuenta===caja&&x.moneda===m);return c?c.saldo:0;};
     $('saldo-sistema').value=String(s('ARS')).replace('.',',');$('usd-sistema').value=String(s('USD')).replace('.',',');
     const ya=new Set([...document.querySelectorAll('#t-caja input[data-k=recibo],#t-caja input[data-k=comprobante]')].map(i=>i.value.trim()).filter(Boolean));
+      const prArq=prev?[].concat(prev.ingresos||[],prev.egresos||[],(prev.usd&&prev.usd.ingresos)||[],(prev.usd&&prev.usd.egresos)||[]):[]; const genArq=/^(Netegia s\/n|Movimiento Netegia)$/i; prArq.forEach(r=>{const d=String(r.recibo||r.comprobante||'').trim(); if(d&&!genArq.test(d))ya.add(d); else ya.add('§'+Math.round(Math.abs(+r.monto||0))+'|'+String(r.detalle||'').replace(/ \([^)]*\)$/,'').trim());});
     const limpiar=id=>{[...$(id).querySelectorAll('tr')].forEach(tr=>{const v=[...tr.querySelectorAll('input')].map(i=>i.value.trim()).join('');if(!v)tr.remove();});};
     ['ing-body','egr-body','usd-ing-body','usd-egr-body'].forEach(limpiar);
     let n=0;
     NX.movimientos.forEach(mv=>{
       const doc=String(mv.documento||'').replace(/\(.*\)$/,'').trim();
-      if(doc&&ya.has(doc))return;
+      if(doc&&ya.has(doc))return; if(!doc&&ya.has('§'+Math.round(Math.abs(+mv.monto||0))+'|'+[mv.concepto,mv.observacion].filter(Boolean).join(' · ')))return;
       const det=[mv.concepto,mv.observacion].filter(Boolean).join(' · ')+' ('+nxFechaTxt(mv.fecha)+')';
       const usd=mv.moneda==='USD';
       if(mv.monto>=0)(usd?addRowU:addRow)('ing',{detalle:det,recibo:doc||'Netegia s/n',monto:mv.monto,nx:'ok'});
