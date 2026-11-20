@@ -1003,6 +1003,49 @@ async function nxSyncEgresos(){
   catch(e){$('nx-egr-status').textContent=errMsg(e);}finally{NXSYNC=false;$('nx-egr-sync').disabled=false;}}
 $('nx-egr-sync').addEventListener('click',()=>{nxRef().then(nxSyncEgresos).catch(e=>{$('nx-egr-status').textContent=errMsg(e);});});
 
+/* ---------- Pasar fondos y egresos de banco (se cargan en Netegia) ---------- */
+(function(){
+  const host=$('nx-egr-sync'); if(!host) return; const card=host.closest('section,.card')||host.parentElement;
+  const box=el('div',{class:'card',id:'mov-box'}); box.style.marginTop='1rem';
+  box.innerHTML='<h2 style="margin:0 0 .3rem">Pasar fondos y egresos de banco</h2><p class="sub" style="margin:0 0 .6rem">Se cargan directo en Netegia. Pasar fondos genera la salida de una cuenta y la entrada en la otra.</p>'
+   +'<div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:flex-end">'
+   +'<label>Tipo<br><select id="mv-tipo"><option value="tr">Pasar fondos</option><option value="eb">Egreso de banco</option></select></label>'
+   +'<label id="mv-l-de">Desde<br><select id="mv-de"></select></label>'
+   +'<label id="mv-l-a">Hacia<br><select id="mv-a"></select></label>'
+   +'<label id="mv-l-g" hidden>Cuenta de gasto<br><select id="mv-g"></select></label>'
+   +'<label>Moneda<br><select id="mv-m"><option value="ARS">Pesos</option><option value="USD">Dólares</option></select></label>'
+   +'<label>Monto<br><input id="mv-monto" inputmode="decimal" placeholder="0" style="width:9rem"></label>'
+   +'<label style="flex:1;min-width:12rem">Detalle<br><input id="mv-det" placeholder="Ej.: depósito en banco, pago de servicio…" style="width:100%"></label>'
+   +'<button type="button" id="mv-ok" class="primary">Cargar en Netegia</button></div><p class="sub" id="mv-st" style="margin:.5rem 0 0"></p>';
+  card.after(box);
+  const puedeBanco=()=>(typeof ROLC==='undefined'||ROLC!=='cajero')||!!window.VERDISP;
+  async function llenar(){const R=await nxRef();const usd=$('mv-m').value==='USD';const tipo=$('mv-tipo').value;
+    const opt=(arr,pre,tag)=>arr.map(c=>new Option(pre+c.nombre,tag+':'+c.id));
+    const bancos=R.bancos.filter(b=>!!b.usd===usd);
+    const de=$('mv-de'),a=$('mv-a'),g=$('mv-g');
+    if(tipo==='eb'){de.replaceChildren(...opt(bancos,'Banco · ','BANCO'));$('mv-l-a').hidden=true;$('mv-l-g').hidden=false;g.replaceChildren(new Option('Cuenta de gasto…',''),...R.gastos.map(x=>new Option(x.nombre,String(x.id))));}
+    else{const todas=[...opt(R.cajas,'Caja · ','CAJA'),...(puedeBanco()?opt(bancos,'Banco · ','BANCO'):[])];de.replaceChildren(...todas.map(o=>new Option(o.text,o.value)));a.replaceChildren(...todas.map(o=>new Option(o.text,o.value)));$('mv-l-a').hidden=false;$('mv-l-g').hidden=true;
+      if(window.CAJA_FIJA){const c=R.cajas.find(x=>x.nombre===window.CAJA_FIJA);if(c)de.value='CAJA:'+c.id;}}}
+  ['mv-tipo','mv-m'].forEach(id=>$(id).addEventListener('change',()=>llenar().catch(e=>{$('mv-st').textContent=errMsg(e);})));
+  $('mv-de').addEventListener('focus',()=>{if(!$('mv-de').options.length)llenar().catch(e=>{$('mv-st').textContent=errMsg(e);});});
+  let ocupado=false;
+  $('mv-ok').addEventListener('click',async()=>{if(ocupado)return;try{if(!$('mv-de').options.length)await llenar();}catch(e){$('mv-st').textContent=errMsg(e);return;}
+    if($('mv-tipo').value==='eb'&&!puedeBanco()){$('mv-st').textContent='Tu usuario no puede cargar egresos de banco.';return;}
+    const tipo=$('mv-tipo').value,monto=num($('mv-monto').value),mon=$('mv-m').value,det=$('mv-det').value.trim()||($('mv-tipo').selectedOptions[0].text);
+    if(!(monto>0)){$('mv-st').textContent='Poné un monto.';return;}
+    const de=$('mv-de').value,a=$('mv-a').value; if(tipo==='tr'&&de===a){$('mv-st').textContent='Desde y hacia no pueden ser la misma cuenta.';return;}
+    const k='mv-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,6),fecha=today()+'T'+new Date().toTimeString().slice(0,8),quien=(S&&S.usuario)||'';
+    const pd=de.split(':'),pa=a.split(':'); const items=[{clave:k+'-o',mov:'EGRESO',tipo:pd[0],cuentaId:+pd[1],cuentaGastoId:tipo==='eb'&&$('mv-g').value?+$('mv-g').value:null,monto,moneda:mon,fecha,obs:(tipo==='tr'?'Pase a '+$('mv-a').selectedOptions[0].text+' · ':'')+det+' · '+quien}];
+    if(tipo==='tr')items.push({clave:k+'-d',mov:'INGRESO',tipo:pa[0],cuentaId:+pa[1],cuentaGastoId:null,monto,moneda:mon,fecha,obs:'Pase desde '+$('mv-de').selectedOptions[0].text+' · '+det+' · '+quien});
+    const txt=(tipo==='tr'?'Pasar ':'Egreso de ')+(mon==='USD'?'US$ ':'$ ')+monto.toLocaleString('es-AR')+(tipo==='tr'?' de '+$('mv-de').selectedOptions[0].text+' a '+$('mv-a').selectedOptions[0].text:' de '+$('mv-de').selectedOptions[0].text)+'. ¿Confirmás?';
+    if(!confirm(txt))return; ocupado=true;$('mv-ok').disabled=true;$('mv-st').textContent='Cargando en Netegia…';
+    try{const j=await api('egresosNetegia',{empresa:nxEmpresa(),items});const ok=(j.res||[]).filter(r=>r.ok).length,er=(j.res||[]).filter(r=>!r.ok);
+      $('mv-st').textContent=er.length?('Error: '+er.map(r=>r.error||('HTTP '+r.code)).join(' · ')+(ok?' (se cargó una parte: revisá en Netegia)':'')):'✓ Cargado en Netegia.';
+      if(!er.length){$('mv-monto').value='';$('mv-det').value='';}
+      try{const cj=$('nx-caja').value;await nxSaldos(cj,today()+'T00:00');const c=NX.cajas.find(x=>x.cuenta===cj&&x.moneda==='ARS');if(c&&$('saldo-sistema'))$('saldo-sistema').value=String(c.saldo).replace('.',',');const cu=NX.cajas.find(x=>x.cuenta===cj&&x.moneda==='USD');if(cu&&$('usd-sistema'))$('usd-sistema').value=String(cu.saldo).replace('.',',');calc();}catch(_){}}
+    catch(e){$('mv-st').textContent=errMsg(e);}finally{ocupado=false;$('mv-ok').disabled=false;}});
+})();
+
 /* ---------- Netegia en vivo ---------- */
 let NX=null;
 const nxEmpresa=()=>(S&&S.empresa)||'Centopex';
@@ -1589,6 +1632,7 @@ function renderAll(resetArqueo){
   if(typeof renderAll==='function'){const _r=renderAll;renderAll=function(){try{filtrar();}catch(e){}return _r.apply(this,arguments);};}
   if(typeof enter==='function'){const _e=enter;enter=function(j){ROLC=(j&&j.rol)||'caja';FIJA=ROLC==='cajero';if(j&&j.empresa)window.CAJA_EMP=j.empresa;const r=_e.apply(this,arguments);
     try{ if(ROLC==='cajero'){document.querySelectorAll('[role="tab"][data-tab]').forEach(t=>{t.hidden=!(t.dataset.tab==='caja'||(j&&j.verDisp&&t.dataset.tab==='disp'));});
+ window.VERDISP=!!(j&&j.verDisp);
  if(j&&j.caja){window.CAJA_FIJA=j.caja;const s=$('nx-caja');if(s){const fija=()=>{if(![...s.options].some(o=>o.value===j.caja))s.append(new Option(j.caja,j.caja));if(s.value!==j.caja)s.value=j.caja;s.disabled=true;};fija();new MutationObserver(fija).observe(s,{childList:true});}}const b=document.querySelector('[data-tab="caja"]');b&&b.click();} pintarSel(); }catch(e){} return r;};}
 })();
 
