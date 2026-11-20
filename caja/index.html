@@ -1588,7 +1588,8 @@ function renderAll(resetArqueo){
   document.querySelectorAll('#caja-emp button').forEach(b=>b.addEventListener('click',()=>{ if(window.CAJA_EMP===b.dataset.emp)return; if(typeof dirty!=='undefined'&&dirty&&!confirm('Hay cambios sin guardar. ¿Cambiar de caja igual?'))return; window.CAJA_EMP=b.dataset.emp; D.arqueos=D.__arqAll||D.arqueos; D.__arqRef=null; renderAll(); try{loadDate(today());}catch(e){} pintarSel(); }));
   if(typeof renderAll==='function'){const _r=renderAll;renderAll=function(){try{filtrar();}catch(e){}return _r.apply(this,arguments);};}
   if(typeof enter==='function'){const _e=enter;enter=function(j){ROLC=(j&&j.rol)||'caja';FIJA=ROLC==='cajero';if(j&&j.empresa)window.CAJA_EMP=j.empresa;const r=_e.apply(this,arguments);
-    try{ if(ROLC==='cajero'){document.querySelectorAll('[role="tab"][data-tab]').forEach(t=>{t.hidden=t.dataset.tab!=='caja';});const b=document.querySelector('[data-tab="caja"]');b&&b.click();} pintarSel(); }catch(e){} return r;};}
+    try{ if(ROLC==='cajero'){document.querySelectorAll('[role="tab"][data-tab]').forEach(t=>{t.hidden=!(t.dataset.tab==='caja'||(j&&j.verDisp&&t.dataset.tab==='disp'));});
+ if(j&&j.caja){window.CAJA_FIJA=j.caja;const s=$('nx-caja');if(s){const fija=()=>{if(![...s.options].some(o=>o.value===j.caja))s.append(new Option(j.caja,j.caja));if(s.value!==j.caja)s.value=j.caja;s.disabled=true;};fija();new MutationObserver(fija).observe(s,{childList:true});}}const b=document.querySelector('[data-tab="caja"]');b&&b.click();} pintarSel(); }catch(e){} return r;};}
 })();
 
 /* ---------- Dirección (resumen para directores) ---------- */
