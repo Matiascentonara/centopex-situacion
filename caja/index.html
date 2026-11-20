@@ -1012,7 +1012,7 @@ async function nxSaldos(caja,desde){const j=await api('saldosNetegia',{empresa:n
 function nxLlenarCajas(){const sel=$('nx-caja');if(!NX)return;const actual=sel.value;const nombres=[...new Set(NX.cajas.map(c=>c.cuenta))].sort();sel.replaceChildren(...nombres.map(n=>el('option',{text:n,value:n})));sel.value=nombres.includes(actual)?actual:(nombres.includes('CAJA BENAVIDEZ')?'CAJA BENAVIDEZ':nombres[0]||'');}
 $('nx-traer').addEventListener('click',async()=>{
   const prev=ultimoArqueo(CUR);
-  const desde=prev?String(prev.fecha||today()).slice(0,10)+'T00:00':today()+'T00:00';
+  const desde=prev?(prev.creado?nxLocal(prev.creado):String(prev.fecha||today()).slice(0,10)+'T23:59'):today()+'T00:00';
   const caja=$('nx-caja').value||'CAJA BENAVIDEZ';
   $('nx-traer').disabled=true;$('nx-status').textContent='Consultando Netegia…';
   try{
