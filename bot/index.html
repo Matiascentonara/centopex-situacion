@@ -44,11 +44,11 @@ body:not(.det) .xd{display:none}tr.nuevo td{background:#fffbea}.neg{color:var(--
 </main>
 <div id="mm" style="position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:30"><div style="background:#fff;border-radius:14px;padding:18px;width:min(860px,95vw);max-height:90vh;overflow:auto;display:grid;gap:10px"><h3 style="margin:0">Subir facturas de proveedores</h3><div id="mmc"></div><div class="bar"><span class="status" id="mmst"></span><span style="flex:1"></span><button id="mmcan">Cancelar</button><button class="p" id="mmok">Subir y marcar como pedido</button></div></div></div>
 <div id="md"><div><h3 style="margin:0" id="mt">Pedido</h3><textarea id="mx"></textarea>
-<div class="bar"><label class="status">WhatsApp del proveedor <input id="mwan" placeholder="5491112345678" style="width:150px;padding:5px;border:1px solid var(--line);border-radius:6px"></label><button id="mwas" type="button">Guardar número</button><button id="mcopy">Copiar texto</button><button id="mtg">Mandármelo por Telegram</button><a id="mwa" target="_blank" rel="noopener"><button type="button">Abrir en WhatsApp</button></a><a id="mmail" target="_blank" rel="noopener"><button type="button">Abrir en mail</button></a><span style="flex:1"></span><button id="mcan">Cancelar</button><button class="p" id="mok">Marcar como pedido</button></div></div></div>
+<div class="bar"><label class="status">WhatsApp del proveedor <input id="mwan" placeholder="5491112345678" style="width:150px;padding:5px;border:1px solid var(--line);border-radius:6px"></label><button id="mwas" type="button">Guardar número</button><button id="mcopy">Copiar texto</button><button id="mtg">Mandármelo por Telegram</button><a id="mwa" target="_blank" rel="noopener"><button type="button">Abrir en WhatsApp</button></a><a id="mmail" target="_blank" rel="noopener"><button type="button">Abrir en mail</button></a><span style="flex:1"></span><button id="mcan">Cancelar</button><button class="p" id="mok">Generar OC</button></div></div></div>
 <script>
 (function(){
 const $=id=>document.getElementById(id);
-let S=null,D=[],NUE={},SEG=[],CONT={},FACS=[],UP=null,PROVS=['TODOPORCELANATOS','TUCSON','HOLSTEIN'];
+let S=null,D=[],NUE={},SEG=[],CONT={},FACS=[],OCS=[],UP=null,PROVS=['TODOPORCELANATOS','TUCSON','HOLSTEIN'];
 try{S=JSON.parse(sessionStorage.getItem('bot')||'null');}catch(e){}
 const API='https://script.google.com/macros/s/AKfycbzlIaEbpmjCZqHUJhNFgEP8hk2tO6fFvHJTtUMpLbbITNIYU_f90N-T6FPi-0AZprua7A/exec';
 const call=req=>fetch(API,{method:'POST',credentials:'omit',redirect:'follow',body:JSON.stringify(Object.assign({usuario:S.u,clave:S.c},req))}).then(r=>r.json()).catch(e=>{throw {code:'red',detalle:String(e&&e.message||e)};});
@@ -60,7 +60,7 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;',
 async function cargar(novedades){
   $('nov').disabled=true;$('st').textContent=novedades?'Actualizando con Netegia… puede tardar un minuto.':'Cargando…';
   try{const j=await call({action:'bot',op:'listar',actualizar:!!novedades,marcar:!!novedades});if(!j.ok)throw {code:j.error,detalle:j.detalle};
-    D=j.datos||[];SEG=j.seguimiento||[];CONT=j.contactos||{};FACS=j.facturas||[];NUE={};(j.nuevas||[]).forEach(k=>NUE[k]='nuevo');(j.cobradas||[]).forEach(k=>NUE[k]='cobrada');
+    D=j.datos||[];SEG=j.seguimiento||[];CONT=j.contactos||{};FACS=j.facturas||[];OCS=j.ocs||[];NUE={};(j.nuevas||[]).forEach(k=>NUE[k]='nuevo');(j.cobradas||[]).forEach(k=>NUE[k]='cobrada');
     D.forEach(r=>{if(r.proveedor&&PROVS.indexOf(r.proveedor)<0&&r.proveedor!=='Stock propio')PROVS.push(r.proveedor);});
     $('ov').style.display='none';
     const n=(j.nuevas||[]).length,c=(j.cobradas||[]).length;
@@ -89,7 +89,7 @@ function pintar(){
       <td>${r.stockPropio?'Stock propio':`<select data-prov="${esc(r.codigo)}">${opts(r.proveedor)}</select>`}</td></tr>`).join('')}</tbody></table></div></section>`;}).join('')||'<p class="status">No hay líneas con este filtro.</p>';
   selCambio();
 }
-function pintarSeg(){const box=$('seg');if(!SEG.length){box.innerHTML=facsHtml();return;}
+function pintarSeg(){const box=$('seg');if(!SEG.length){box.innerHTML=ocsHtml()+facsHtml();return;}
  const fila=p=>{const ls=p.claves.map(k=>D.find(r=>r.clave===k)).filter(Boolean);const co=ls.reduce((s,r)=>s+(r.costoEstimado?0:r.costo),0);const neto=p.facTotal?(p.facLetra==='A'?p.facTotal/1.21:p.facTotal):0;const dif=co&&neto?(neto-co)/co*100:null;
   return `<tr><td><b>${esc(p.pedido)}</b></td><td>${esc(p.proveedor)}</td><td>${esc(p.fecha.split('-').reverse().join('/'))}</td><td class="r">${p.claves.length}</td><td class="r">${co?$$(co):'—'}</td>
   <td>${p.facDoc?`${esc(p.facDoc)} · ${esc(p.facFecha.split('-').reverse().join('/'))} · ${$$(p.facTotal)}`:'<span class="status">sin factura</span>'}</td>
@@ -97,12 +97,14 @@ function pintarSeg(){const box=$('seg');if(!SEG.length){box.innerHTML=facsHtml()
   <td>${p.opDoc?`${esc(p.opDoc)} · ${$$(p.opTotal)}`:'<span class="status">sin pagar</span>'}</td>
   <td><span class="b ${p.estado==='pagado'?'ok':p.estado==='facturado'?'no':''}">${p.estado}</span></td>
   <td><button data-sp="${esc(p.pedido)}" data-spp="${esc(p.proveedor)}">Subir factura</button> ${p.facDoc?`<button data-desv="${esc(p.pedido)}" title="Si la factura o el pago no corresponden a este pedido">Desvincular</button>`:''}</td></tr>`;};
- box.innerHTML=`<section class="grp"><h2>Pedidos en curso <small>la factura y el pago se detectan solos en Netegia (compras y órdenes de pago del proveedor)</small></h2><div class="tw"><table><thead><tr><th>Pedido</th><th>Proveedor</th><th>Fecha</th><th class="r">Líneas</th><th class="r">Costo est.</th><th>Factura</th><th class="r">Dif. vs costo</th><th>Pago (OP)</th><th>Estado</th><th></th></tr></thead><tbody>${SEG.map(fila).join('')}</tbody></table></div></section>`+facsHtml();}
+ box.innerHTML=`<section class="grp"><h2>Pedidos en curso <small>la factura y el pago se detectan solos en Netegia (compras y órdenes de pago del proveedor)</small></h2><div class="tw"><table><thead><tr><th>Pedido</th><th>Proveedor</th><th>Fecha</th><th class="r">Líneas</th><th class="r">Costo est.</th><th>Factura</th><th class="r">Dif. vs costo</th><th>Pago (OP)</th><th>Estado</th><th></th></tr></thead><tbody>${SEG.map(fila).join('')}</tbody></table></div></section>`+ocsHtml()+facsHtml();}
+function ocsHtml(){if(!OCS.length)return '';return `<section class="grp"><h2>Órdenes de compra <small>se generan desde "Armar pedido"; después se cargan en Netegia</small></h2><div class="tw"><table><thead><tr><th>OC</th><th>Fecha</th><th>Proveedor</th><th>A/X</th><th class="r">Ítems</th><th class="r">Total costo</th><th>Estado</th><th>N.º Netegia</th><th></th></tr></thead><tbody>${OCS.map(o=>`<tr><td><b>${esc(o.oc)}</b></td><td>${esc(new Date(o.fecha).toLocaleDateString('es-AR'))}</td><td>${esc(o.proveedor)}</td><td>${o.letra==='X'?'<span class="b">X · cta 2</span>':'<span class="b ok">A · cta 1</span>'}</td><td class="r">${(o.items||[]).length}</td><td class="r">${$$(o.total)}</td><td><select data-oce="${esc(o.oc)}">${['a cargar en Netegia','cargada en Netegia','enviada al proveedor','pagada','recibida','anulada'].map(s=>`<option${s===o.estado?' selected':''}>${s}</option>`).join('')}</select></td><td>${esc(o.netegia||'—')}</td><td><button data-ocn="${esc(o.oc)}">N.º Netegia</button></td></tr>`).join('')}</tbody></table></div></section>`;}
 function facsHtml(){if(!FACS.length)return '';return `<section class="grp"><h2>Facturas subidas <small>quedan guardadas en Drive para cargarlas en Netegia</small></h2><div class="tw"><table><thead><tr><th>Fecha</th><th>Pedido</th><th>Proveedor</th><th>Archivo</th><th>Estado</th></tr></thead><tbody>${FACS.map(f=>`<tr><td>${esc(new Date(f.fecha).toLocaleDateString('es-AR'))}</td><td>${esc(f.pedido||'—')}</td><td>${esc(f.proveedor)}</td><td><a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.archivo)}</a></td><td>${esc(f.estado)}</td></tr>`).join('')}</tbody></table></div></section>`;}
 function marcadas(){return [...document.querySelectorAll('input[data-sel]:checked')].map(i=>D.find(r=>r.clave===i.dataset.sel)).filter(Boolean);}
 function selCambio(){const m=marcadas(),v=m.reduce((s,r)=>s+r.venta,0);$('sel').textContent=m.length?`${m.length} marcada(s) · venta ${$$(v)}${m.some(r=>!(r.cobrado>=0.999))?' · ojo: hay líneas sin cobrar':''}`:'';['ped','rec','vol'].forEach(id=>$(id).disabled=!m.length);}
 document.addEventListener('change',async e=>{const t=e.target;
   if(t.dataset.mfp!=null){MF[+t.dataset.mfp].prov=t.value;pintarMasivo();return;}
+  if(t.dataset.oce!=null){$('st').textContent='Guardando…';try{const j=await call({action:'bot',op:'ocEstado',oc:t.dataset.oce,estado:t.value});if(!j.ok)throw {code:j.error,detalle:j.detalle};const o=OCS.find(x=>x.oc===t.dataset.oce);if(o)o.estado=t.value;$('st').textContent='OC '+t.dataset.oce+': '+t.value+'.';}catch(x){$('st').textContent=err(x);}return;}
   if(t.dataset.est!=null){const r=D.find(x=>x.clave===t.dataset.est);if(!r)return;$('st').textContent='Guardando estado…';try{const j=await call({action:'bot',op:'estado',estado:t.value,claves:[r.clave],proveedor:r.proveedor||''});if(!j.ok)throw {code:j.error,detalle:j.detalle};r.estado=t.value;if(t.value==='pedido'&&j.pedido)r.pedido=j.pedido;$('st').textContent='Estado de '+r.codigo+': '+t.value+'.';pintar();}catch(x){$('st').textContent=err(x);pintar();}return;}
   if(t.id==='ff'){if(UP&&UP.masivo){const fl=[...t.files];t.value='';if(fl.length)abrirMasivo(fl);return;}const f=t.files[0];t.value='';if(!f||!UP)return;if(f.size>10e6){$('st').textContent='El archivo supera 10 MB.';return;}$('st').textContent='Subiendo '+f.name+'…';const rd=new FileReader();rd.onload=async()=>{try{const j=await call({action:'bot',op:'factura',pedido:UP.pedido||'',proveedor:UP.prov||'',nombre:f.name,mime:f.type||'application/pdf',datos:String(rd.result).split(',')[1]});if(!j.ok)throw {code:j.error,detalle:j.detalle};$('st').textContent='Factura guardada. Queda pendiente de cargar en Netegia.';cargar(false);}catch(x){$('st').textContent=err(x);}};rd.readAsDataURL(f);return;}
   if(t.dataset.grp!=null){document.querySelectorAll('input[data-sel]').forEach(i=>{const r=D.find(x=>x.clave===i.dataset.sel);if(r&&(r.proveedor||'Proveedor a definir')===t.dataset.grp&&!i.disabled)i.checked=t.checked;});selCambio();return;}
@@ -117,9 +119,9 @@ async function estado(nuevo,pedido,prov){const m=marcadas();if(!m.length)return;
   catch(x){$('st').textContent=err(x);}}
 $('ped').onclick=()=>{const m=marcadas();const provs=[...new Set(m.map(r=>r.proveedor||''))];
   if(provs.length!==1||!provs[0]){alert('Marcá líneas de un solo proveedor (y que tengan proveedor elegido).');return;}
-  const ab=m.filter(r=>!r.x),xx=m.filter(r=>r.x),it={};const add=(arr,tag)=>arr.forEach(r=>{const k=tag+'|'+r.codigo;it[k]=it[k]||{tag,codigo:r.codigo,desc:r.descripcion,cant:0};it[k].cant+=r.cantidad;});add(ab,'A');add(xx,'X');
+  const ab=m.filter(r=>!r.x),xx=m.filter(r=>r.x),it={};const add=(arr,tag)=>arr.forEach(r=>{const k=tag+'|'+r.codigo;it[k]=it[k]||{tag,codigo:r.codigo,desc:r.descripcion,cant:0,cost:0};it[k].cant+=r.cantidad;it[k].cost+=(r.costoEstimado?0:r.costo);});add(ab,'A');add(xx,'X');
   const uni=d=>/pastina|adhesiv|pegament|bolsa|sinteplast|klaukol|weber|balde|sellador/i.test(d)?'u.':'m²';const fmtc=n=>(Math.round((+n||0)*100)/100).toFixed(2).replace('.',',');
-  const lin=t=>Object.values(it).filter(i=>i.tag===t).map((i,n)=>`${n+1}) ${fmtc(i.cant)} ${uni(i.desc)} — ${i.codigo} · ${i.desc}`).join('\n');
+  const lin=t=>Object.values(it).filter(i=>i.tag===t).map((i,n)=>`${n+1}) ${fmtc(i.cant)} ${uni(i.desc)} — ${i.codigo} · ${i.desc}${i.cost?' · $ '+fmtc(i.cost/i.cant)+' c/u':''}`).join('\n');
   let tx=`PEDIDO CENTOPEX → ${provs[0]} · ${new Date().toLocaleDateString('es-AR')}\n`;
   if(ab.length)tx+=`\nCON FACTURA A\n${lin('A')}\n`;if(xx.length)tx+=`\nCON PRESUPUESTO (X)\n${lin('X')}\n`;
   tx+=`\nPor favor confirmar stock, precio y fecha de entrega. Gracias.`;
@@ -127,10 +129,11 @@ $('ped').onclick=()=>{const m=marcadas();const provs=[...new Set(m.map(r=>r.prov
   $('mwan').value=(CONT[provs[0]]||{}).wa||'';$('mwa').href='https://wa.me/'+$('mwan').value.replace(/\D/g,'')+'?text='+encodeURIComponent(tx);$('mmail').href='mailto:?subject='+encodeURIComponent('Pedido Centopex')+'&body='+encodeURIComponent(tx);};
 $('mcopy').onclick=()=>{$('mx').select();try{navigator.clipboard.writeText($('mx').value);}catch(e){document.execCommand('copy');}$('mcopy').textContent='Copiado';setTimeout(()=>$('mcopy').textContent='Copiar texto',1500);};
 $('mcan').onclick=()=>{$('md').style.display='none';};
-$('mok').onclick=async()=>{$('md').style.display='none';await estado('pedido','',$('md').dataset.prov);};
+$('mok').onclick=async()=>{const m=marcadas();const p=$('md').dataset.prov;$('md').style.display='none';$('st').textContent='Generando OC…';try{const j=await call({action:'bot',op:'oc',claves:m.map(r=>r.clave),proveedor:p});if(!j.ok)throw {code:j.error,detalle:j.detalle};$('st').textContent='OC generada: '+(j.ocs||[]).map(o=>o.oc+' ($ '+Math.round(o.total).toLocaleString('es-AR')+')').join(' y ')+'. Queda para cargar en Netegia.';cargar(false);}catch(x){$('st').textContent=err(x);}};
 $('rec').onclick=()=>{if(confirm('¿Marcar como recibidas las líneas elegidas?'))estado('recibido');};
 $('vol').onclick=()=>{if(confirm('¿Volver a "a pedir" las líneas elegidas?'))estado('a pedir');};
 $('nov').onclick=()=>cargar(true);
+document.addEventListener('click',async e=>{const x=e.target.closest('[data-ocn]');if(!x)return;const n=(prompt('Número de la OC en Netegia (por ejemplo OC-00001):')||'').trim();if(!n)return;try{const j=await call({action:'bot',op:'ocEstado',oc:x.dataset.ocn,netegia:n,estado:'cargada en Netegia'});if(!j.ok)throw {code:j.error,detalle:j.detalle};cargar(false);}catch(er){$('st').textContent=err(er);}});
 let MF=[];
 function guessProv(n){n=String(n).toUpperCase();if(/TUCSON/.test(n))return 'TUCSON';if(/TODOPOR|TFAC-TP|(^|[^A-Z])TP([^A-Z]|$)/.test(n))return 'TODOPORCELANATOS';if(/HOLSTEIN/.test(n))return 'HOLSTEIN';return '';}
 function abrirMasivo(files){MF=files.map(f=>({f,prov:guessProv(f.name)}));pintarMasivo();$('mmst').textContent='';$('mm').style.display='flex';}
