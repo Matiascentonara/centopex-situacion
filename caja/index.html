@@ -929,7 +929,7 @@ function detalleRow(h,tr){
     tabla('Egresos y depósitos',(h.egresos||[]).map(r=>[fila(r),money(r.monto)]),money(h.totalEgresos))+
     (h.usd&&h.usd.estado&&h.usd.estado!=='vacio'?tabla('Dólares',Object.entries(h.usd.conteo||{}).sort((x,y)=>y[0]-x[0]).map(([d,n])=>['US$ '+d+' × '+n,fmtU2(d*n)]).concat([['Saldo inicial',fmtU2(h.usd.saldoInicial)],['Entradas',fmtU2(h.usd.totalIngresos)],['Salidas',fmtU2(h.usd.totalEgresos)],['Debería haber',fmtU2(h.usd.teorico)],['Diferencia',(h.usd.diferencia>0?'+':'')+fmtU2(h.usd.diferencia)]]),fmtU2(h.usd.contado)):'')+
     '<div style="min-width:220px;flex:1"><b>Resumen</b><table style="width:100%;margin-top:.3rem">'+
-    [['Saldo inicial',money(h.saldoInicial)],['Debería haber',money(h.teorico)],['Contado',money(h.contado)],['Diferencia',money(h.diferencia)],['Arqueó',h.responsable||'—'],['Controló',h.controlo||'—'],['Guardó',(h.guardadoPor||'—')+(h.hora?' · '+h.hora+' h':'')]].map(r=>'<tr><td>'+esc(r[0])+'</td><td style="text-align:right">'+esc(r[1])+'</td></tr>').join('')+'</table>'+
+    [['Empresa',h.empresa||'Sin registrar'],['Saldo inicial',money(h.saldoInicial)],['Debería haber',money(h.teorico)],['Contado',money(h.contado)],['Diferencia',money(h.diferencia)],['Arqueó',h.responsable||'—'],['Controló',h.controlo||'—'],['Guardó',(h.guardadoPor||'—')+(h.hora?' · '+h.hora+' h':'')]].map(r=>'<tr><td>'+esc(r[0])+'</td><td style="text-align:right">'+esc(r[1])+'</td></tr>').join('')+'</table>'+
     (h.obs?'<p style="margin:.5rem 0 0"><b>Observaciones:</b> '+esc(h.obs)+'</p>':'')+'</div></div>';
   tr2.append(td);
   const b=document.createElement('button');b.type='button';b.textContent='▸';b.title='Ver cómo está compuesto';b.setAttribute('aria-expanded','false');
@@ -942,7 +942,7 @@ function renderHist(){
   const tb=$('hist-body');tb.replaceChildren();
   const rows=[...D.arqueos].sort((x,y)=>ord(x)<ord(y)?1:-1);$('hist-empty').hidden=rows.length>0;
   rows.forEach(h=>{const tr=el('tr');if(h.id===CUR)tr.className='sel';
-    [fdate(h.fecha)+(D.arqueos.filter(x=>x.fecha===h.fecha).length>1?' · '+nroDelDia(h)+'°':'')+(h.hora?' '+h.hora:''),fmt(h.saldoInicial),fmt(h.totalIngresos),fmt(h.totalEgresos),fmt(h.teorico),fmt(h.contado),(h.diferencia>0?'+':'')+fmt(h.diferencia),h.usd&&h.usd.estado&&h.usd.estado!=='vacio'?fmtU2(h.usd.contado)+(h.usd.estado==='ok'?'':' ('+(h.usd.diferencia>0?'+':'')+fmtU2(h.usd.diferencia)+')'):'—'].forEach((c,i)=>tr.append(el('td',{class:i?'r':'',text:c})));
+    [(h.empresa||'Empresa sin registrar')+' · '+fdate(h.fecha)+(D.arqueos.filter(x=>x.fecha===h.fecha).length>1?' · '+nroDelDia(h)+'°':'')+(h.hora?' '+h.hora:''),fmt(h.saldoInicial),fmt(h.totalIngresos),fmt(h.totalEgresos),fmt(h.teorico),fmt(h.contado),(h.diferencia>0?'+':'')+fmt(h.diferencia),h.usd&&h.usd.estado&&h.usd.estado!=='vacio'?fmtU2(h.usd.contado)+(h.usd.estado==='ok'?'':' ('+(h.usd.diferencia>0?'+':'')+fmtU2(h.usd.diferencia)+')'):'—'].forEach((c,i)=>tr.append(el('td',{class:i?'r':'',text:c})));
     tr.append(el('td',{},[el('span',{class:'pill '+h.estado,text:h.estado==='ok'?'Sin diferencias':h.estado==='falt'?'Faltante':'Sobrante'})]),el('td',{text:h.responsable||'—'}),el('td',{text:h.guardadoPor||'—'}));
     tr.addEventListener('click',()=>{if(dirty&&!confirm('Hay cambios sin guardar en el arqueo abierto. ¿Descartarlos?'))return;loadById(h.id);window.scrollTo({top:0,behavior:'smooth'});});
     tb.append(tr);tb.append(detalleRow(h,tr));});
