@@ -223,6 +223,7 @@ h1,h2,h3{letter-spacing:-.01em}
       <h2>Netegia</h2>
       <p class="hint">Trae de Netegia el saldo de la caja en pesos y en dólares, y los recibos y salidas en efectivo desde el último arqueo. Después solo contás los billetes.</p>
       <div class="meta" style="align-items:flex-end;gap:.8rem;flex-wrap:wrap">
+        <label class="f" id="nx-emp-l">Empresa<select id="nx-emp"><option>Centopex</option><option>Centonara</option></select></label>
         <label class="f">Caja de Netegia<select id="nx-caja"><option>CAJA BENAVIDEZ</option></select></label>
         <button type="button" class="primary" id="nx-traer">Traer de Netegia</button>
         <span class="status" id="nx-status"></span>
@@ -1003,6 +1004,10 @@ async function nxSyncEgresos(){
   catch(e){$('nx-egr-status').textContent=errMsg(e);}finally{NXSYNC=false;$('nx-egr-sync').disabled=false;}}
 $('nx-egr-sync').addEventListener('click',()=>{nxRef().then(nxSyncEgresos).catch(e=>{$('nx-egr-status').textContent=errMsg(e);});});
 
+/* ---------- Empresa (solo directores): Centopex o Centonara ---------- */
+(function(){const s=$('nx-emp');if(!s)return;try{const v=sessionStorage.getItem('empDir');if(v){s.value=v;window.EMP_DIR=v;}}catch(_){}
+ s.addEventListener('change',()=>{window.EMP_DIR=s.value;try{sessionStorage.setItem('empDir',s.value);}catch(_){}try{NXREF=null;}catch(_){}const c=$('nx-caja');if(c){c.replaceChildren(new Option('CAJA BENAVIDEZ','CAJA BENAVIDEZ'));c.value='CAJA BENAVIDEZ';}if($('saldo-sistema'))$('saldo-sistema').value='';if($('nx-status'))$('nx-status').textContent='Empresa: '+s.value+'. Tocá "Traer de Netegia".';const mv=$('mv-de');if(mv){mv.replaceChildren();$('mv-a').replaceChildren();}});})();
+
 /* ---------- Pasar fondos y egresos de banco (se cargan en Netegia) ---------- */
 (function(){
   const host=$('nx-egr-sync'); if(!host) return; const card=host.closest('section,.card')||host.parentElement;
@@ -1048,7 +1053,7 @@ $('nx-egr-sync').addEventListener('click',()=>{nxRef().then(nxSyncEgresos).catch
 
 /* ---------- Netegia en vivo ---------- */
 let NX=null;
-const nxEmpresa=()=>(S&&S.empresa)||'Centopex';
+const nxEmpresa=()=>(S&&S.empresa)||window.EMP_DIR||'Centopex';
 const nxLocal=iso=>{try{return new Date(iso).toLocaleString('sv-SE',{timeZone:'America/Argentina/Buenos_Aires'}).replace(' ','T').slice(0,16);}catch(e){return '';}};
 const nxFechaTxt=f=>{if(!f)return '—';const d=String(f).slice(0,16).replace('T',' ');const [a,b]=d.split(' ');return fdate(a)+(b?' '+b:'');};
 async function nxSaldos(caja,desde){const j=await api('saldosNetegia',{empresa:nxEmpresa(),caja,desde});NX=j.saldos;return NX;}
@@ -1632,7 +1637,7 @@ function renderAll(resetArqueo){
   if(typeof renderAll==='function'){const _r=renderAll;renderAll=function(){try{filtrar();}catch(e){}return _r.apply(this,arguments);};}
   if(typeof enter==='function'){const _e=enter;enter=function(j){ROLC=(j&&j.rol)||'caja';FIJA=ROLC==='cajero';if(j&&j.empresa)window.CAJA_EMP=j.empresa;const r=_e.apply(this,arguments);
     try{ if(ROLC==='cajero'){document.querySelectorAll('[role="tab"][data-tab]').forEach(t=>{t.hidden=!(t.dataset.tab==='caja'||(j&&j.verDisp&&t.dataset.tab==='disp'));});
- window.VERDISP=!!(j&&j.verDisp);
+ window.VERDISP=!!(j&&j.verDisp); {const l=$('nx-emp-l');if(l)l.hidden=true;}
  if(j&&j.caja){window.CAJA_FIJA=j.caja;const s=$('nx-caja');if(s){const fija=()=>{if(![...s.options].some(o=>o.value===j.caja))s.append(new Option(j.caja,j.caja));if(s.value!==j.caja)s.value=j.caja;s.disabled=true;};fija();new MutationObserver(fija).observe(s,{childList:true});}}const b=document.querySelector('[data-tab="caja"]');b&&b.click();} pintarSel(); }catch(e){} return r;};}
 })();
 
