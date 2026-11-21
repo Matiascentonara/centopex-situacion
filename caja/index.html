@@ -176,7 +176,7 @@ h1,h2,h3{letter-spacing:-.01em}
 <body>
 <div class="login" id="v-login">
   <form class="sheet" id="login-form" autocomplete="on">
-    <div class="brand-mark">CENTONARA</div><h1>Caja y flujo de fondos · Centopex</h1>
+    <div class="brand-mark">CENTONARA</div><h1>Caja y flujo de fondos · Centonara y Centopex</h1>
     <p class="sub">Ingresá con tu usuario y clave.</p>
     <label class="f">Usuario<input type="text" id="l-nombre" autocomplete="username" autocapitalize="none" spellcheck="false" required></label>
     <label class="f">Clave<input type="password" id="l-clave" autocomplete="current-password" required></label>
@@ -685,6 +685,9 @@ async function api(action,extra={}){
   const j=(window.google&&google.script&&google.script.run)?await new Promise((res,rej)=>google.script.run.withSuccessHandler(res).withFailureHandler(e=>rej({code:'red',detalle:String(e&&e.message||e)})).api(cuerpo)):await (await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(cuerpo)})).json();
   if(!j.ok)throw {code:j.error,detalle:j.detalle};
   if(j.nombre)S.nombre=j.nombre;
+  ['rol','empresa','caja','verDisp'].forEach(k=>{if(Object.prototype.hasOwnProperty.call(j,k))S[k]=j[k];});
+  if(S.usuario==='hugo'){S.rol='cajero';S.empresa='Centonara';S.caja='CAJA BENAVIDEZ';S.verDisp=false;}
+  if(j.rol)sessionStorage.setItem('centopex-sesion',JSON.stringify(S));
   if(j.datos){D=j.datos;D.config=Object.assign({tc:1545,tolerancia:1000,limite:3000000},D.config||{});}
   return j;
 }
@@ -694,7 +697,7 @@ const errMsg=e=>({clave:'Usuario o clave incorrectos.',bloqueado:'Demasiados int
 $('login-form').addEventListener('submit',async ev=>{
   ev.preventDefault();$('l-err').textContent='';$('l-btn').disabled=true;
   S={clave:$('l-clave').value,usuario:$('l-nombre').value.trim().toLowerCase()};
-  try{await api('datos');sessionStorage.setItem('centopex-sesion',JSON.stringify(S));enter();}
+  try{const j=await api('datos');sessionStorage.setItem('centopex-sesion',JSON.stringify(S));enter(j);}
   catch(e){if(e.code==='cambiar_clave'){showChange(true);}else $('l-err').textContent=errMsg(e);}
   finally{$('l-btn').disabled=false;}
 });
@@ -715,7 +718,7 @@ $('cc-form').addEventListener('submit',async ev=>{
   if(n!==$('cc-rep').value){$('cc-err').textContent='Las dos claves no coinciden.';return;}
   if(n.length<8){$('cc-err').textContent=errMsg({code:'clave_debil'});return;}
   $('cc-btn').disabled=true;
-  try{await api('cambiarClave',{nueva:n});S.clave=n;await api('datos');sessionStorage.setItem('centopex-sesion',JSON.stringify(S));$('cc-form').hidden=true;$('login-form').hidden=false;enter();}
+  try{await api('cambiarClave',{nueva:n});S.clave=n;const j=await api('datos');sessionStorage.setItem('centopex-sesion',JSON.stringify(S));$('cc-form').hidden=true;$('login-form').hidden=false;enter(j);}
   catch(e){$('cc-err').textContent=errMsg(e);}
   finally{$('cc-btn').disabled=false;}
 });
@@ -929,7 +932,7 @@ function detalleRow(h,tr){
     tabla('Egresos y depósitos',(h.egresos||[]).map(r=>[fila(r),money(r.monto)]),money(h.totalEgresos))+
     (h.usd&&h.usd.estado&&h.usd.estado!=='vacio'?tabla('Dólares',Object.entries(h.usd.conteo||{}).sort((x,y)=>y[0]-x[0]).map(([d,n])=>['US$ '+d+' × '+n,fmtU2(d*n)]).concat([['Saldo inicial',fmtU2(h.usd.saldoInicial)],['Entradas',fmtU2(h.usd.totalIngresos)],['Salidas',fmtU2(h.usd.totalEgresos)],['Debería haber',fmtU2(h.usd.teorico)],['Diferencia',(h.usd.diferencia>0?'+':'')+fmtU2(h.usd.diferencia)]]),fmtU2(h.usd.contado)):'')+
     '<div style="min-width:220px;flex:1"><b>Resumen</b><table style="width:100%;margin-top:.3rem">'+
-    [['Empresa',h.empresa||'Sin registrar'],['Saldo inicial',money(h.saldoInicial)],['Debería haber',money(h.teorico)],['Contado',money(h.contado)],['Diferencia',money(h.diferencia)],['Arqueó',h.responsable||'—'],['Controló',h.controlo||'—'],['Guardó',(h.guardadoPor||'—')+(h.hora?' · '+h.hora+' h':'')]].map(r=>'<tr><td>'+esc(r[0])+'</td><td style="text-align:right">'+esc(r[1])+'</td></tr>').join('')+'</table>'+
+    [['Empresa',empresaArqueo(h)],['Saldo inicial',money(h.saldoInicial)],['Debería haber',money(h.teorico)],['Contado',money(h.contado)],['Diferencia',money(h.diferencia)],['Arqueó',h.responsable||'—'],['Controló',h.controlo||'—'],['Guardó',(h.guardadoPor||'—')+(h.hora?' · '+h.hora+' h':'')]].map(r=>'<tr><td>'+esc(r[0])+'</td><td style="text-align:right">'+esc(r[1])+'</td></tr>').join('')+'</table>'+
     (h.obs?'<p style="margin:.5rem 0 0"><b>Observaciones:</b> '+esc(h.obs)+'</p>':'')+'</div></div>';
   tr2.append(td);
   const b=document.createElement('button');b.type='button';b.textContent='▸';b.title='Ver cómo está compuesto';b.setAttribute('aria-expanded','false');
@@ -942,7 +945,7 @@ function renderHist(){
   const tb=$('hist-body');tb.replaceChildren();
   const rows=[...D.arqueos].sort((x,y)=>ord(x)<ord(y)?1:-1);$('hist-empty').hidden=rows.length>0;
   rows.forEach(h=>{const tr=el('tr');if(h.id===CUR)tr.className='sel';
-    [(h.empresa||'Empresa sin registrar')+' · '+fdate(h.fecha)+(D.arqueos.filter(x=>x.fecha===h.fecha).length>1?' · '+nroDelDia(h)+'°':'')+(h.hora?' '+h.hora:''),fmt(h.saldoInicial),fmt(h.totalIngresos),fmt(h.totalEgresos),fmt(h.teorico),fmt(h.contado),(h.diferencia>0?'+':'')+fmt(h.diferencia),h.usd&&h.usd.estado&&h.usd.estado!=='vacio'?fmtU2(h.usd.contado)+(h.usd.estado==='ok'?'':' ('+(h.usd.diferencia>0?'+':'')+fmtU2(h.usd.diferencia)+')'):'—'].forEach((c,i)=>tr.append(el('td',{class:i?'r':'',text:c})));
+    [(empresaArqueo(h))+' · '+fdate(h.fecha)+(D.arqueos.filter(x=>x.fecha===h.fecha).length>1?' · '+nroDelDia(h)+'°':'')+(h.hora?' '+h.hora:''),fmt(h.saldoInicial),fmt(h.totalIngresos),fmt(h.totalEgresos),fmt(h.teorico),fmt(h.contado),(h.diferencia>0?'+':'')+fmt(h.diferencia),h.usd&&h.usd.estado&&h.usd.estado!=='vacio'?fmtU2(h.usd.contado)+(h.usd.estado==='ok'?'':' ('+(h.usd.diferencia>0?'+':'')+fmtU2(h.usd.diferencia)+')'):'—'].forEach((c,i)=>tr.append(el('td',{class:i?'r':'',text:c})));
     tr.append(el('td',{},[el('span',{class:'pill '+h.estado,text:h.estado==='ok'?'Sin diferencias':h.estado==='falt'?'Faltante':'Sobrante'})]),el('td',{text:h.responsable||'—'}),el('td',{text:h.guardadoPor||'—'}));
     tr.addEventListener('click',()=>{if(dirty&&!confirm('Hay cambios sin guardar en el arqueo abierto. ¿Descartarlos?'))return;loadById(h.id);window.scrollTo({top:0,behavior:'smooth'});});
     tb.append(tr);tb.append(detalleRow(h,tr));});
@@ -1004,10 +1007,6 @@ async function nxSyncEgresos(){
   catch(e){$('nx-egr-status').textContent=errMsg(e);}finally{NXSYNC=false;$('nx-egr-sync').disabled=false;}}
 $('nx-egr-sync').addEventListener('click',()=>{nxRef().then(nxSyncEgresos).catch(e=>{$('nx-egr-status').textContent=errMsg(e);});});
 
-/* ---------- Empresa (solo directores): Centopex o Centonara ---------- */
-(function(){const s=$('nx-emp');if(!s)return;try{const v=sessionStorage.getItem('empDir');if(v){s.value=v;window.EMP_DIR=v;}}catch(_){}
- s.addEventListener('change',()=>{window.EMP_DIR=s.value;try{sessionStorage.setItem('empDir',s.value);}catch(_){}try{NXREF=null;}catch(_){}const c=$('nx-caja');if(c){c.replaceChildren(new Option('CAJA BENAVIDEZ','CAJA BENAVIDEZ'));c.value='CAJA BENAVIDEZ';}if($('saldo-sistema'))$('saldo-sistema').value='';if($('nx-status'))$('nx-status').textContent='Empresa: '+s.value+'. Tocá "Traer de Netegia".';const mv=$('mv-de');if(mv){mv.replaceChildren();$('mv-a').replaceChildren();}});})();
-
 /* ---------- Pasar fondos y egresos de banco (se cargan en Netegia) ---------- */
 (function(){
   const host=$('nx-egr-sync'); if(!host) return; const card=host.closest('section,.card')||host.parentElement;
@@ -1023,7 +1022,7 @@ $('nx-egr-sync').addEventListener('click',()=>{nxRef().then(nxSyncEgresos).catch
    +'<label style="flex:1;min-width:12rem">Detalle<br><input id="mv-det" placeholder="Ej.: depósito en banco, pago de servicio…" style="width:100%"></label>'
    +'<button type="button" id="mv-ok" class="primary">Cargar en Netegia</button></div><p class="sub" id="mv-st" style="margin:.5rem 0 0"></p>';
   card.after(box);
-  const puedeBanco=()=>(typeof ROLC==='undefined'||ROLC!=='cajero')||!!window.VERDISP;
+  const puedeBanco=()=>S.rol==='director'||!!window.VERDISP;
   async function llenar(){const R=await nxRef();const usd=$('mv-m').value==='USD';const tipo=$('mv-tipo').value;
     const opt=(arr,pre,tag)=>arr.map(c=>new Option(pre+c.nombre,tag+':'+c.id));
     const bancos=R.bancos.filter(b=>!!b.usd===usd);
@@ -1053,7 +1052,7 @@ $('nx-egr-sync').addEventListener('click',()=>{nxRef().then(nxSyncEgresos).catch
 
 /* ---------- Netegia en vivo ---------- */
 let NX=null;
-const nxEmpresa=()=>(S&&S.empresa)||window.EMP_DIR||'Centopex';
+const nxEmpresa=()=>S.usuario==='hugo'?'Centonara':S.rol==='director'?(window.CAJA_EMP||'Centopex'):(S.empresa||window.CAJA_EMP||'Centopex');
 const nxLocal=iso=>{try{return new Date(iso).toLocaleString('sv-SE',{timeZone:'America/Argentina/Buenos_Aires'}).replace(' ','T').slice(0,16);}catch(e){return '';}};
 const nxFechaTxt=f=>{if(!f)return '—';const d=String(f).slice(0,16).replace('T',' ');const [a,b]=d.split(' ');return fdate(a)+(b?' '+b:'');};
 async function nxSaldos(caja,desde){const j=await api('saldosNetegia',{empresa:nxEmpresa(),caja,desde});NX=j.saldos;return NX;}
@@ -1119,10 +1118,10 @@ $('guardar').addEventListener('click',async()=>{
   catch(e){$('status').textContent=errMsg(e);}finally{$('guardar').disabled=false;}
 });
 $('csv').addEventListener('click',()=>{
-  const head=['fecha','arqueo','controlo','saldo_inicial','ingresos','egresos','deberia_haber','contado','diferencia','estado','ingresos_sin_recibo','observaciones','guardado_por','usd_inicial','usd_entradas','usd_salidas','usd_deberia_haber','usd_contado','usd_diferencia'];
+  const head=['empresa','fecha','arqueo','controlo','saldo_inicial','ingresos','egresos','deberia_haber','contado','diferencia','estado','ingresos_sin_recibo','observaciones','guardado_por','usd_inicial','usd_entradas','usd_salidas','usd_deberia_haber','usd_contado','usd_diferencia'];
   const q=v=>{const s=String(v??'');return /[";\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
-  const lines=[head.join(';')].concat([...D.arqueos].sort((x,y)=>x.fecha<y.fecha?-1:1).map(h=>[h.fecha,h.responsable,h.controlo,h.saldoInicial,h.totalIngresos,h.totalEgresos,h.teorico,h.contado,h.diferencia,h.estado,(h.ingresos||[]).filter(r=>r.monto>0&&!r.recibo).length,h.obs,h.guardadoPor,...(h.usd?[h.usd.saldoInicial,h.usd.totalIngresos,h.usd.totalEgresos,h.usd.teorico,h.usd.contado,h.usd.diferencia]:['','','','','',''])].map(q).join(';')));
-  const blob=new Blob(['\ufeff'+lines.join('\n')],{type:'text/csv;charset=utf-8'});const a=el('a',{href:URL.createObjectURL(blob),download:'arqueos-caja-centopex.csv'});document.body.append(a);a.click();a.remove();
+  const lines=[head.join(';')].concat([...D.arqueos].sort((x,y)=>x.fecha<y.fecha?-1:1).map(h=>[empresaArqueo(h),h.fecha,h.responsable,h.controlo,h.saldoInicial,h.totalIngresos,h.totalEgresos,h.teorico,h.contado,h.diferencia,h.estado,(h.ingresos||[]).filter(r=>r.monto>0&&!r.recibo).length,h.obs,h.guardadoPor,...(h.usd?[h.usd.saldoInicial,h.usd.totalIngresos,h.usd.totalEgresos,h.usd.teorico,h.usd.contado,h.usd.diferencia]:['','','','','',''])].map(q).join(';')));
+  const blob=new Blob(['\ufeff'+lines.join('\n')],{type:'text/csv;charset=utf-8'});const a=el('a',{href:URL.createObjectURL(blob),download:'arqueos-caja-'+nxEmpresa().toLowerCase()+'.csv'});document.body.append(a);a.click();a.remove();
 });
 
 /* ---------- Free cash flow ---------- */
@@ -1493,7 +1492,7 @@ function renderAll(resetArqueo){
   $('rs-act').addEventListener('click',cargarRS); $('rs-mes').addEventListener('change',cargarRS);
   $('vd-act').addEventListener('click',cargarVD); $('vd-mes').addEventListener('change',cargarVD);
   document.querySelectorAll('[data-tab="res"],[data-tab="vend"]').forEach(b=>b.addEventListener('click',()=>{ if(b.dataset.tab==='res')cargarRS(); else if(!VD)cargarVD(); }));
-  if(typeof enter==='function'){const _en=enter;enter=function(j){const r=_en.apply(this,arguments);try{ROL=(j&&j.rol)||'caja';
+  if(typeof enter==='function'){const _en=enter;enter=function(j){j=Object.assign({},S,j||{});const r=_en.apply(this,arguments);try{ROL=(j&&j.rol)||'caja';
     const tabs=[...document.querySelectorAll('[role="tab"][data-tab]')];
     tabs.forEach(t=>{const k=t.dataset.tab;let ver=true;if(t.dataset.oculta)ver=false;else if(ROL!=='director')ver=(k!=='res');t.hidden=!ver;});
     if(ROL==='vendedor'){const b=tabs.find(t=>t.dataset.tab==='vend');b&&b.click();}
@@ -1627,20 +1626,51 @@ function renderAll(resetArqueo){
   if(typeof renderAll==='function'){const _r=renderAll;renderAll=function(){const x=_r.apply(this,arguments);try{pintarFci();}catch(e){}return x;};}
 })();
 
-/* ---------- Caja por empresa (Centopex / Centonara) ---------- */
+/* ---------- Caja por empresa: selección única ---------- */
+function empresaArqueo(a){
+  const responsable=String(a.responsable||'').trim().toLowerCase();
+  const guardo=String(a.guardadoPor||'').trim().toLowerCase();
+  if(responsable==='hugo'||(!responsable&&guardo==='hugo'))return 'Centonara';
+  return a.empresa||'Centopex';
+}
 (function(){
-  window.CAJA_EMP='Centopex'; let ROLC='caja', FIJA=false;
-  const filtrar=()=>{ if(!D||!D.arqueos)return; if(!D.__arqAll||D.__arqRef!==D.arqueos){D.__arqAll=D.arqueos.slice();} D.arqueos=D.__arqAll.filter(a=>(a.empresa||'Centopex')===window.CAJA_EMP); D.__arqRef=D.arqueos; };
-  const titulo=()=>{const h1=document.querySelector('h1');if(!h1)return;let b=h1.querySelector('.caja-badge');if(!b){b=document.createElement('span');b.className='caja-badge';h1.append(b);}b.textContent=window.CAJA_EMP;};
-  function pintarSel(){const s=document.getElementById('caja-emp');if(!s)return;s.hidden=FIJA;s.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.emp===window.CAJA_EMP)));titulo();}
-  document.querySelectorAll('#caja-emp button').forEach(b=>b.addEventListener('click',()=>{ if(window.CAJA_EMP===b.dataset.emp)return; if(typeof dirty!=='undefined'&&dirty&&!confirm('Hay cambios sin guardar. ¿Cambiar de caja igual?'))return; window.CAJA_EMP=b.dataset.emp; D.arqueos=D.__arqAll||D.arqueos; D.__arqRef=null; renderAll(); try{loadDate(today());}catch(e){} pintarSel(); }));
-  if(typeof renderAll==='function'){const _r=renderAll;renderAll=function(){try{filtrar();}catch(e){}return _r.apply(this,arguments);};}
-  if(typeof enter==='function'){const _e=enter;enter=function(j){ROLC=(j&&j.rol)||'caja';FIJA=ROLC==='cajero';if(j&&j.empresa)window.CAJA_EMP=j.empresa;const r=_e.apply(this,arguments);
-    try{ if(ROLC==='cajero'){document.querySelectorAll('[role="tab"][data-tab]').forEach(t=>{t.hidden=!(t.dataset.tab==='caja'||(j&&j.verDisp&&t.dataset.tab==='disp'));});
- window.VERDISP=!!(j&&j.verDisp); {const l=$('nx-emp-l');if(l)l.hidden=true;}
- if(j&&j.caja){window.CAJA_FIJA=j.caja;const s=$('nx-caja');if(s){const fija=()=>{if(![...s.options].some(o=>o.value===j.caja))s.append(new Option(j.caja,j.caja));if(s.value!==j.caja)s.value=j.caja;s.disabled=true;};fija();new MutationObserver(fija).observe(s,{childList:true});}}const b=document.querySelector('[data-tab="caja"]');b&&b.click();} pintarSel(); }catch(e){} return r;};}
+  window.CAJA_EMP='Centopex'; let FIJA=true;
+  const filtrar=()=>{if(!D||!D.arqueos)return;if(!D.__arqAll||D.__arqRef!==D.arqueos)D.__arqAll=D.arqueos.slice();D.arqueos=D.__arqAll.filter(a=>empresaArqueo(a)===window.CAJA_EMP);D.__arqRef=D.arqueos;};
+  function pintarSel(){
+    const s=$('caja-emp');s.hidden=FIJA;s.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.emp===window.CAJA_EMP)));
+    $('nx-emp-l').hidden=FIJA;$('nx-emp').value=window.CAJA_EMP;
+    const h=document.querySelector('#v-app h1');if(h)h.textContent='Caja y flujo de fondos · '+window.CAJA_EMP;
+    $('h-user').textContent=(S.nombre||S.usuario)+' · '+(FIJA?window.CAJA_EMP:'Director · ambas empresas');
+  }
+  function cambiar(emp){
+    if(FIJA||!['Centopex','Centonara'].includes(emp)||emp===window.CAJA_EMP){pintarSel();return;}
+    if(NXSYNC){$('nx-status').textContent='Esperá a que termine la sincronización antes de cambiar de empresa.';pintarSel();return;}
+    if(dirty&&!confirm('Hay cambios sin guardar. ¿Descartarlos y cambiar de empresa?')){pintarSel();return;}
+    window.CAJA_EMP=emp;window.EMP_DIR=emp;NXREF=null;NX=null;CUR=null;dirty=false;
+    D.arqueos=D.__arqAll||D.arqueos;D.__arqRef=null;
+    $('nx-caja').replaceChildren(new Option('CAJA BENAVIDEZ','CAJA BENAVIDEZ'));
+    $('saldo-sistema').value='';$('usd-sistema').value='';
+    ['mv-de','mv-a','mv-g'].forEach(id=>{const x=$(id);if(x)x.replaceChildren();});
+    renderAll();loadDate(today());pintarSel();
+    $('nx-status').textContent='Empresa: '+emp+'. Tocá “Traer de Netegia”.';
+  }
+  document.querySelectorAll('#caja-emp button').forEach(b=>b.addEventListener('click',()=>cambiar(b.dataset.emp)));
+  $('nx-emp').addEventListener('change',()=>cambiar($('nx-emp').value));
+  const _r=renderAll;renderAll=function(){filtrar();const r=_r.apply(this,arguments);pintarSel();return r;};
+  const _e=enter;enter=function(j){
+    j=Object.assign({},S,j||{});
+    if(S.usuario==='hugo'){j.empresa='Centonara';j.caja='CAJA BENAVIDEZ';j.rol='cajero';j.verDisp=false;}
+    FIJA=j.rol!=='director';window.CAJA_EMP=FIJA?(j.empresa||'Centopex'):(window.CAJA_EMP||'Centopex');window.EMP_DIR=window.CAJA_EMP;
+    window.VERDISP=!!j.verDisp;
+    const r=_e.call(this,j);
+    if(FIJA&&j.rol!=='vendedor'){
+      document.querySelectorAll('[role="tab"][data-tab]').forEach(t=>{t.hidden=!(t.dataset.tab==='caja'||(j.verDisp&&t.dataset.tab==='disp'));});
+      if(j.caja){window.CAJA_FIJA=j.caja;const c=$('nx-caja');if(![...c.options].some(o=>o.value===j.caja))c.append(new Option(j.caja,j.caja));c.value=j.caja;c.disabled=true;}
+      const tab=document.querySelector('[data-tab="caja"]');if(tab)tab.click();
+    }
+    pintarSel();return r;
+  };
 })();
-
 /* ---------- Dirección (resumen para directores) ---------- */
 (function(){
   let EMP='Centopex'; const RS={};
@@ -1651,7 +1681,7 @@ function renderAll(resetArqueo){
   const vacio=t=>h('p',{class:'vacio'},t);
   const mesDe=d=>d.slice(0,7), mesAnt=m=>{const [y,mm]=m.split('-').map(Number);const d=new Date(y,mm-2,1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');};
   const nomMes=m=>['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'][Number(m.slice(5,7))-1]+' '+m.slice(0,4);
-  function conCaja(emp,fn){const prev=window.CAJA_EMP;if(!D.__arqAll)D.__arqAll=D.arqueos.slice();const arq=D.arqueos;D.arqueos=D.__arqAll.filter(a=>(a.empresa||'Centopex')===emp);try{return fn();}finally{D.arqueos=arq;window.CAJA_EMP=prev;}}
+  function conCaja(emp,fn){const prev=window.CAJA_EMP;if(!D.__arqAll)D.__arqAll=D.arqueos.slice();const arq=D.arqueos;D.arqueos=D.__arqAll.filter(a=>empresaArqueo(a)===emp);try{return fn();}finally{D.arqueos=arq;window.CAJA_EMP=prev;}}
   async function resultados(m){ if(RS[m])return RS[m]; const j=await api('resultados',{mes:m}); RS[m]=j.resultados; return RS[m]; }
   function eerrCalc(P,ventas){const cp=P.cmv==='teorico'||!P.cmv?(1-P.margenLista/100)/(1-P.descuento/100):null;const costo=ventas*(cp||0.667),mb=ventas-costo,ib=ventas*P.iibb/100,ot=ventas*P.otros/100,gf=(P.gastos||[]).reduce((a,g)=>a+(+g.monto||0),0);const mc=1-(cp||0.667)-P.iibb/100-P.otros/100;return {costo,mb,ib,ot,gf,res:mb-ib-ot-gf,pe:mc>0?gf/mc:null,cp};}
   window.pintarDir=async function(){
@@ -1725,7 +1755,7 @@ function renderAll(resetArqueo){
   document.querySelectorAll('#dir-emp button[data-emp]').forEach(b=>b.addEventListener('click',()=>{EMP=b.dataset.emp;pintarDir();}));
   document.getElementById('dir-act').addEventListener('click',async()=>{const st=$('dir-st');st.textContent='Trayendo lo último de Netegia… (puede tardar un minuto)';try{const a=await api('actualizar',{});Object.keys(RS).forEach(k=>delete RS[k]);await pintarDir();st.textContent=a&&a.ultima?('Datos de Netegia al '+new Date(a.ultima).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})):'';}catch(e){st.textContent=errMsg(e);}});
   document.querySelectorAll('[data-tab="dir"]').forEach(b=>b.addEventListener('click',()=>setTimeout(pintarDir,30)));
-  if(typeof enter==='function'){const _e=enter;enter=function(j){const r=_e.apply(this,arguments);try{const rol=(j&&j.rol)||'caja';const t=document.querySelector('[data-tab="dir"]');if(t){t.hidden=rol!=='director';if(rol==='director')t.click();}}catch(e){}return r;};}
+  if(typeof enter==='function'){const _e=enter;enter=function(j){j=Object.assign({},S,j||{});const r=_e.apply(this,arguments);try{const rol=(j&&j.rol)||'caja';const t=document.querySelector('[data-tab="dir"]');if(t){t.hidden=rol!=='director';if(rol==='director')t.click();}}catch(e){}return r;};}
 })();
 
 /* ---------- Comisiones (página de vendedores) ---------- */
@@ -1779,7 +1809,7 @@ function renderAll(resetArqueo){
   $('cm-mes').value=mesPrev();
   $('cm-act').addEventListener('click',()=>cargar(true)); $('cm-mes').addEventListener('change',cargar); $('cm-sel').addEventListener('change',pintar);
   document.querySelectorAll('[data-tab="com"]').forEach(b=>b.addEventListener('click',()=>{ if(!R)cargar(); }));
-  if(typeof enter==='function'){const _e=enter;enter=function(j){ROLCOM=(j&&j.rol)||'caja';const r=_e.apply(this,arguments);try{
+  if(typeof enter==='function'){const _e=enter;enter=function(j){j=Object.assign({},S,j||{});ROLCOM=(j&&j.rol)||'caja';const r=_e.apply(this,arguments);try{
     const t=document.querySelector('[data-tab="com"]');
     if(ROLCOM==='vendedor'){document.querySelectorAll('[role="tab"][data-tab]').forEach(x=>{x.hidden=x.dataset.tab!=='com';});t&&t.click();}
     else if(t){t.hidden=ROLCOM!=='director';}
