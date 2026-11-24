@@ -351,7 +351,7 @@ h1,h2,h3{letter-spacing:-.01em}
     <section class="sheet" style="margin-bottom:1rem">
       <h2>Saldos en Netegia</h2>
       <p class="hint">Saldo de cada banco y caja calculado con todos los movimientos cargados en Netegia. Se actualiza al abrir esta solapa o con el botón.</p>
-      <p style="margin:.2rem 0 .6rem"><button type="button" id="nx-disp-traer">Actualizar desde Netegia</button> <span class="status" id="nx-disp-status"></span></p>
+      <p style="margin:.2rem 0 .6rem"><label id="disp-emp-l" style="margin-right:.5rem">Empresa <select id="disp-emp"><option>Centopex</option><option>Centonara</option></select></label><button type="button" id="nx-disp-traer">Actualizar desde Netegia</button> <span class="status" id="nx-disp-status"></span></p>
       <div class="hist"><table class="disp-table">
         <thead><tr><th>Cuenta</th><th>Tipo</th><th class="r">Pesos</th><th class="r">Dólares</th><th>Último movimiento</th></tr></thead>
         <tbody id="nx-disp-body"><tr><td colspan="5" class="small">Tocá “Actualizar desde Netegia”.</td></tr></tbody>
@@ -1016,6 +1016,10 @@ async function nxSyncEgresos(){
   catch(e){$('nx-egr-status').textContent=errMsg(e);}finally{NXSYNC=false;$('nx-egr-sync').disabled=false;}}
 $('nx-egr-sync').addEventListener('click',()=>{nxRef().then(nxSyncEgresos).catch(e=>{$('nx-egr-status').textContent=errMsg(e);});});
 
+/* ---------- Empresa en Disponibilidades (solo directores) ---------- */
+(function(){const s=$('disp-emp');if(!s)return;try{const v=sessionStorage.getItem('empDir');if(v)s.value=v;}catch(_){}
+ s.addEventListener('change',()=>{window.EMP_DIR=s.value;try{sessionStorage.setItem('empDir',s.value);}catch(_){}try{NXREF=null;}catch(_){}['nx-emp','bk-emp'].forEach(id=>{const x=$(id);if(x)x.value=s.value;});const b=$('nx-disp-traer');if(b)b.click();});})();
+
 /* ---------- Empresa (solo directores): Centopex o Centonara ---------- */
 (function(){const s=$('nx-emp');if(!s)return;try{const v=sessionStorage.getItem('empDir');if(v){s.value=v;window.EMP_DIR=v;}}catch(_){}
  s.addEventListener('change',()=>{window.EMP_DIR=s.value;try{sessionStorage.setItem('empDir',s.value);}catch(_){}try{NXREF=null;}catch(_){}const c=$('nx-caja');if(c){c.replaceChildren(new Option('CAJA BENAVIDEZ','CAJA BENAVIDEZ'));c.value='CAJA BENAVIDEZ';}if($('saldo-sistema'))$('saldo-sistema').value='';if($('nx-status'))$('nx-status').textContent='Empresa: '+s.value+'. Tocá "Traer de Netegia".';const mv=$('mv-de');if(mv){mv.replaceChildren();$('mv-a').replaceChildren();}});})();
@@ -1058,6 +1062,7 @@ $('nx-egr-sync').addEventListener('click',()=>{nxRef().then(nxSyncEgresos).catch
       const r=(j.res||[])[0]||{};if(!r.ok)throw new Error(r.error||('HTTP '+r.code));$('bk-st2').textContent='✓ Cargado en Netegia.';await cargar();}
     catch(x){$('bk-st2').textContent='Error: '+errMsg(x);}finally{b.disabled=false;}});
   $('bk-act').addEventListener('click',cargar);
+  {const tb=document.querySelector('[data-tab="bancos"]');if(tb)tb.addEventListener('click',()=>{if(!(S&&S.empresa)&&window.EMP_DIR)$('bk-emp').value=window.EMP_DIR;if(!BK)cargar();});}
   $('bk-emp').addEventListener('change',()=>{SEL='';cargar();});
 })();
 
@@ -1690,7 +1695,7 @@ function renderAll(resetArqueo){
   if(typeof renderAll==='function'){const _r=renderAll;renderAll=function(){try{filtrar();}catch(e){}return _r.apply(this,arguments);};}
   if(typeof enter==='function'){const _e=enter;enter=function(j){ROLC=(j&&j.rol)||'caja';FIJA=ROLC==='cajero';if(j&&j.empresa)window.CAJA_EMP=j.empresa;const r=_e.apply(this,arguments);
     try{ if(ROLC==='cajero'){document.querySelectorAll('[role="tab"][data-tab]').forEach(t=>{t.hidden=!(t.dataset.tab==='caja'||(j&&j.verDisp&&(t.dataset.tab==='disp'||t.dataset.tab==='bancos')));});
- window.VERDISP=!!(j&&j.verDisp); {const l=$('nx-emp-l');if(l)l.hidden=true;const l2=$('bk-emp-l');if(l2)l2.hidden=true;}
+ window.VERDISP=!!(j&&j.verDisp); {const l=$('nx-emp-l');if(l)l.hidden=true;const l2=$('bk-emp-l');if(l2)l2.hidden=true;const l3=$('disp-emp-l');if(l3)l3.hidden=true;}
  if(j&&j.caja){window.CAJA_FIJA=j.caja;const s=$('nx-caja');if(s){const fija=()=>{if(![...s.options].some(o=>o.value===j.caja))s.append(new Option(j.caja,j.caja));if(s.value!==j.caja)s.value=j.caja;s.disabled=true;};fija();new MutationObserver(fija).observe(s,{childList:true});}}const b=document.querySelector('[data-tab="caja"]');b&&b.click();} pintarSel(); }catch(e){} return r;};}
 })();
 
