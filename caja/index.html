@@ -735,7 +735,7 @@ $('cc-form').addEventListener('submit',async ev=>{
 /* ---------- Tabs ---------- */
 document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{
   document.querySelectorAll('[data-tab]').forEach(x=>x.setAttribute('aria-selected',String(x===b)));
-  ['dir','com','caja','disp','mes','fcf','prov','ent','res','vend'].forEach(t=>$('t-'+t).hidden=t!==b.dataset.tab);
+  document.querySelectorAll('[role="tabpanel"]').forEach(p=>{if(p.id&&p.id.indexOf('t-')===0)p.hidden=p.id!=='t-'+b.dataset.tab;});
   if(b.dataset.tab==='fcf')renderFCF();
 }));
 
@@ -1031,14 +1031,14 @@ $('nx-egr-sync').addEventListener('click',()=>{nxRef().then(nxSyncEgresos).catch
   const h=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const base=n=>String(n||'').replace(/\s*(U\$S|U\$D|USD|DOLAR(ES)?)\s*$/i,'').trim();
   const fmtU=x=>'US$ '+Number(x||0).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
-  const empB=()=>(S&&S.empresa)||$('bk-emp').value;
+  const empB=()=>$('bk-emp').value||(S&&S.empresa)||'Centopex';const soloLect=()=>!!(S&&S.empresa)&&empB()!==S.empresa;
   async function cargar(){$('bk-st').textContent='Leyendo cajas y bancos de Netegia…';try{if(!(S&&S.empresa)){window.EMP_DIR=$('bk-emp').value;}try{NXREF=null;}catch(_){}
-    const [j,R]=await Promise.all([api('bancosNetegia',{empresa:empB(),dias:30}),nxRef()]);BK=j;RB=R;pintar();$('bk-st').textContent=j.empresa+' · saldos al día · movimientos de los últimos 30 días.';}catch(e){$('bk-st').textContent=errMsg(e);}}
+    const ro=soloLect();const [j,R]=await Promise.all([api('bancosNetegia',{empresa:empB(),dias:30}),ro?Promise.resolve({cajas:[],bancos:[],gastos:[]}):nxRef()]);BK=j;RB=R;pintar();$('bk-st').textContent=j.empresa+' · saldos al día · movimientos de los últimos 30 días.';}catch(e){$('bk-st').textContent=errMsg(e);}}
   function cuentas(){const m={};const add=(t,n)=>{const k=t+':'+(t==='B'?base(n):n);return m[k]=m[k]||{key:k,tipo:t,cuenta:t==='B'?base(n):n,ARS:null,USD:null};};
-    const fija=(S&&S.empresa)&&window.CAJA_FIJA;
+    const ro=soloLect();const fija=(S&&S.empresa)&&!ro&&window.CAJA_FIJA;
     (RB&&RB.cajas||[]).forEach(c=>{if(fija&&c.nombre!==fija)return;const x=add('C',c.nombre);if(x.ARS==null)x.ARS=0;});
     (RB&&RB.bancos||[]).forEach(b=>{const c=add('B',b.nombre);if(b.usd){if(c.USD==null)c.USD=0;}else if(c.ARS==null)c.ARS=0;});
-    (BK.cajas||[]).forEach(b=>{if(fija&&b.cuenta!==fija)return;if(!(RB&&RB.cajas||[]).some(c=>c.nombre===b.cuenta))return;const c=add('C',b.cuenta);c[b.moneda]=b.saldo;});
+    (BK.cajas||[]).forEach(b=>{if(fija&&b.cuenta!==fija)return;if(!ro&&!(RB&&RB.cajas||[]).some(c=>c.nombre===b.cuenta))return;const c=add('C',b.cuenta);c[b.moneda]=b.saldo;});
     (BK.bancos||[]).forEach(b=>{const c=add('B',b.cuenta);c[b.moneda]=b.saldo;});
     return Object.values(m).sort((a,b)=>a.tipo===b.tipo?(a.cuenta<b.cuenta?-1:1):(a.tipo==='C'?-1:1));}
   function pintar(){const cs=cuentas();const card=c=>'<button type="button" class="tile" data-bk="'+h(c.key)+'" style="text-align:left;cursor:pointer;'+(c.key===SEL?'outline:3px solid #8c6239;':'')+'"><div class="k">'+(c.tipo==='C'?'Caja · ':'Banco · ')+h(c.cuenta)+'</div><div class="v">'+(c.ARS!=null?fmt(c.ARS):'—')+'</div><div class="sub">'+(c.USD!=null?fmtU(c.USD):'sin cuenta en USD')+'</div></button>';
@@ -1046,7 +1046,7 @@ $('nx-egr-sync').addEventListener('click',()=>{nxRef().then(nxSyncEgresos).catch
     if(!SEL){$('bk-det').innerHTML='<p class="sub">Elegí una caja o un banco para ver sus movimientos y registrar ingresos o egresos.</p>';return;}
     const c=cs.find(x=>x.key===SEL);if(!c){SEL='';return pintar();}
     const mv=(BK.movs||[]).filter(m=>(m.tipo==='CAJA'?'C:'+m.cuenta:'B:'+base(m.cuenta))===SEL).sort((a,b)=>a.fecha<b.fecha?1:-1).slice(0,80);
-    $('bk-det').innerHTML='<h3 style="margin:.4rem 0">'+(c.tipo==='C'?'Caja · ':'Banco · ')+h(c.cuenta)+'</h3><div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:flex-end">'
+    $('bk-det').innerHTML='<h3 style="margin:.4rem 0">'+(c.tipo==='C'?'Caja · ':'Banco · ')+h(c.cuenta)+(soloLect()?' <span class="sub">(solo lectura)</span>':'')+'</h3><div style="display:'+(soloLect()?'none':'flex')+';gap:.5rem;flex-wrap:wrap;align-items:flex-end">'
      +'<label class="f">Tipo<select id="bk-tipo"><option value="EGRESO">Egreso (sale)</option><option value="INGRESO">Ingreso (entra)</option></select></label>'
      +'<label class="f">Moneda<select id="bk-mon"><option value="ARS">Pesos</option><option value="USD">Dólares</option></select></label>'
      +'<label class="f">Monto<input id="bk-monto" inputmode="decimal" placeholder="0" style="width:9rem"></label>'
@@ -1703,7 +1703,7 @@ function renderAll(resetArqueo){
   if(typeof renderAll==='function'){const _r=renderAll;renderAll=function(){try{filtrar();}catch(e){}return _r.apply(this,arguments);};}
   if(typeof enter==='function'){const _e=enter;enter=function(j){ROLC=(j&&j.rol)||'caja';FIJA=ROLC==='cajero';if(j&&j.empresa)window.CAJA_EMP=j.empresa;const r=_e.apply(this,arguments);
     try{ if(ROLC==='cajero'){document.querySelectorAll('[role="tab"][data-tab]').forEach(t=>{t.hidden=!(t.dataset.tab==='caja'||(j&&j.verDisp&&(t.dataset.tab==='disp'||t.dataset.tab==='bancos')));});
- window.VERDISP=!!(j&&j.verDisp); {const l=$('nx-emp-l');if(l)l.hidden=true;const l2=$('bk-emp-l');if(l2)l2.hidden=true;const l3=$('disp-emp-l');if(l3)l3.hidden=true;}
+ window.VERDISP=!!(j&&j.verDisp); {const l=$('nx-emp-l');if(l)l.hidden=true;const l2=$('bk-emp-l');if(l2){l2.hidden=!(j&&j.verDisp);const se=$('bk-emp');if(se&&j&&j.empresa)se.value=j.empresa;}const l3=$('disp-emp-l');if(l3)l3.hidden=true;}
  if(j&&j.caja){window.CAJA_FIJA=j.caja;const s=$('nx-caja');if(s){const fija=()=>{if(![...s.options].some(o=>o.value===j.caja))s.append(new Option(j.caja,j.caja));if(s.value!==j.caja)s.value=j.caja;s.disabled=true;};fija();new MutationObserver(fija).observe(s,{childList:true});}}const b=document.querySelector('[data-tab="caja"]');b&&b.click();} pintarSel(); }catch(e){} return r;};}
 })();
 
