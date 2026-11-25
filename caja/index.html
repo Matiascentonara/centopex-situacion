@@ -214,7 +214,7 @@ h1,h2,h3{letter-spacing:-.01em}
 
   <!-- ===== CAJA ===== -->
   <section id="t-caja" role="tabpanel">
-  <div id="caja-emp" class="caja-emp" hidden><span class="hint">Caja de:</span> <button type="button" data-emp="Centopex">Centopex</button> <button type="button" data-emp="Centonara">Centonara</button></div>
+  <div id="caja-emp" class="caja-emp" hidden><span class="hint">Empresa:</span> <button type="button" data-emp="Centopex">Centopex</button> <button type="button" data-emp="Centonara">Centonara</button></div>
     <div class="meta" style="margin-bottom:1rem">
       <label class="f">Fecha<input type="date" id="fecha"></label>
       <label class="f">Arqueó<input type="text" id="responsable" placeholder="Nombre" autocomplete="off"></label>
@@ -224,7 +224,7 @@ h1,h2,h3{letter-spacing:-.01em}
       <h2>Netegia</h2>
       <p class="hint">Trae de Netegia el saldo de la caja en pesos y en dólares, y los recibos y salidas en efectivo desde el último arqueo. Después solo contás los billetes.</p>
       <div class="meta" style="align-items:flex-end;gap:.8rem;flex-wrap:wrap">
-        <label class="f" id="nx-emp-l">Empresa<select id="nx-emp"><option>Centopex</option><option>Centonara</option></select></label>
+        <label class="f" id="nx-emp-l" hidden>Empresa<select id="nx-emp"><option>Centopex</option><option>Centonara</option></select></label>
         <label class="f">Caja de Netegia<select id="nx-caja"><option>CAJA BENAVIDEZ</option></select></label>
         <button type="button" class="primary" id="nx-traer">Traer de Netegia</button>
         <span class="status" id="nx-status"></span>
@@ -706,7 +706,7 @@ const errMsg=e=>({clave:'Usuario o clave incorrectos.',bloqueado:'Demasiados int
 $('login-form').addEventListener('submit',async ev=>{
   ev.preventDefault();$('l-err').textContent='';$('l-btn').disabled=true;
   S={clave:$('l-clave').value,usuario:$('l-nombre').value.trim().toLowerCase()};
-  try{await api('datos');sessionStorage.setItem('centopex-sesion',JSON.stringify(S));enter();}
+  try{const j=await api('datos');sessionStorage.setItem('centopex-sesion',JSON.stringify(S));enter(j);}
   catch(e){if(e.code==='cambiar_clave'){showChange(true);}else $('l-err').textContent=errMsg(e);}
   finally{$('l-btn').disabled=false;}
 });
@@ -974,7 +974,7 @@ $('l-olvide').addEventListener('click',()=>{const u=(($('l-nombre')&&$('l-nombre
 /* ---------- Salidas hacia Netegia ---------- */
 let NXREF=null;
 document.head.append(el('style',{text:'.nx-egr{display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;margin-top:.35rem}.nx-egr select{font:inherit;font-size:.8rem;max-width:13rem;padding:.2rem .3rem}.nx-st{font-size:.75rem;color:#8a6d3b}.nx-st.ok{color:#2e7d32}.nx-st.error{color:#b23b3b}'}));
-async function nxRef(){if(NXREF)return NXREF;const j=await api('refNetegia',{empresa:nxEmpresa()});NXREF=j.ref;document.querySelectorAll('tr[data-clave]').forEach(nxEgrFill);return NXREF;}
+async function nxRef(){if(NXREF)return NXREF;const empresa=nxEmpresa(),rev=EMP_REV;const j=await api('refNetegia',{empresa});if(empresa!==nxEmpresa()||rev!==EMP_REV)throw new Error('Cambió la empresa. Volvé a consultar.');NXREF=j.ref;document.querySelectorAll('tr[data-clave]').forEach(nxEgrFill);return NXREF;}
 function esReciboTxt(v){v=String(v||'').trim();return !!v&&v!=='Netegia s/n'&&(/^R[CE]\b|^R[CE]-/i.test(v)||/\d+-\d+/.test(v));}
 function nxEsRecibo(tr){if(tr.dataset.kind!=='ing')return false;const r=tr.querySelector('[data-k=recibo]');return esReciboTxt(r?r.value:'');}
 function nxEgrFill(tr){if(!NXREF)return;const sc=tr.querySelector('select[data-k=nxCuenta]'),sg=tr.querySelector('select[data-k=nxGasto]');if(!sc||!sg)return;
@@ -1020,23 +1020,65 @@ $('nx-egr-sync').addEventListener('click',()=>{nxRef().then(nxSyncEgresos).catch
 /* ---------- Título con la empresa en uso (Centopex o Centonara) ---------- */
 setInterval(()=>{const e=(S&&S.empresa)||window.EMP_DIR||'Centopex';const t=e+' · caja y flujo de fondos';const h=$('app-tit');if(h&&h.textContent!==t)h.textContent=t;if(document.title!==t)document.title=t;},700);
 
-/* ---------- Empresa en Disponibilidades (solo directores) ---------- */
-(function(){const s=$('disp-emp');if(!s)return;try{const v=sessionStorage.getItem('empDir');if(v)s.value=v;}catch(_){}
- s.addEventListener('change',()=>{window.EMP_DIR=s.value;try{sessionStorage.setItem('empDir',s.value);}catch(_){}try{NXREF=null;}catch(_){}['nx-emp','bk-emp'].forEach(id=>{const x=$(id);if(x)x.value=s.value;});const b=$('nx-disp-traer');if(b)b.click();});})();
-
-/* ---------- Empresa (solo directores): Centopex o Centonara ---------- */
-(function(){const s=$('nx-emp');if(!s)return;try{const v=sessionStorage.getItem('empDir');if(v){s.value=v;window.EMP_DIR=v;}}catch(_){}
- s.addEventListener('change',()=>{window.EMP_DIR=s.value;try{sessionStorage.setItem('empDir',s.value);}catch(_){}try{NXREF=null;}catch(_){}const c=$('nx-caja');if(c){c.replaceChildren(new Option('CAJA BENAVIDEZ','CAJA BENAVIDEZ'));c.value='CAJA BENAVIDEZ';}if($('saldo-sistema'))$('saldo-sistema').value='';if($('nx-status'))$('nx-status').textContent='Empresa: '+s.value+'. Tocá "Traer de Netegia".';const mv=$('mv-de');if(mv){mv.replaceChildren();$('mv-a').replaceChildren();}});})();
+/* ---------- Una empresa para Arqueo, Disponibilidades y Bancos ---------- */
+let EMP_REV=0;
+function empresaControles(){
+  const emp=(S&&S.empresa)||window.CAJA_EMP||'Centopex';
+  ['nx-emp','disp-emp','bk-emp'].forEach(id=>{if($(id))$(id).value=emp;});
+  document.querySelectorAll('#caja-emp button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.emp===emp)));
+  if($('nx-emp-l'))$('nx-emp-l').hidden=true;
+  if($('app-tit'))$('app-tit').textContent=emp+' · caja y flujo de fondos';
+  document.title=emp+' · caja y flujo de fondos';
+}
+function seleccionarEmpresa(emp,origen,inicial){
+  const anterior=(S&&S.empresa)||window.CAJA_EMP||'Centopex';
+  if(!['Centopex','Centonara'].includes(emp)||((S&&S.empresa)&&emp!==S.empresa)){empresaControles();return false;}
+  const cambio=emp!==anterior;
+  if(!inicial&&cambio&&(NXSYNC||$('nx-traer').disabled||$('mv-ok').disabled||$('guardar').disabled)){
+    empresaControles();alert('Esperá a que termine la operación actual antes de cambiar de empresa.');return false;
+  }
+  if(!inicial&&cambio&&dirty&&!confirm('Hay cambios sin guardar en el arqueo. ¿Cambiar de empresa y descartarlos?')){
+    empresaControles();return false;
+  }
+  window.CAJA_EMP=emp;window.EMP_DIR=emp;
+  try{sessionStorage.setItem('empDir',emp);}catch(_){}
+  empresaControles();
+  if(!cambio&&!inicial)return true;
+  EMP_REV++;NX=null;NXREF=null;
+  const caja=$('nx-caja');
+  if(caja&&!window.CAJA_FIJA)caja.replaceChildren(new Option('Elegí una caja de '+emp,''));
+  ['nx-resumen','nx-egr-status','mv-st','nx-disp-ars','nx-disp-usd'].forEach(id=>{if($(id))$(id).textContent='';});
+  ['mv-de','mv-a','nx-disp-body'].forEach(id=>{if($(id))$(id).replaceChildren();});
+  ['mv-monto','mv-det'].forEach(id=>{if($(id))$(id).value='';});
+  $('nx-status').textContent='Empresa: '+emp+'. Tocá "Traer de Netegia".';
+  $('nx-disp-status').textContent='Empresa: '+emp+'. Actualizá desde Netegia.';
+  if(!inicial&&cambio){
+    D.arqueos=D.__arqAll||D.arqueos;D.__arqRef=null;
+    dirty=false;renderAll();loadDate(today());
+  }
+  document.dispatchEvent(new CustomEvent('caja-empresa',{detail:{empresa:emp,origen,inicial:!!inicial}}));
+  if(!inicial&&origen!=='disp'&&!$('t-disp').hidden)nxDisp();
+  return true;
+}
+$('disp-emp').addEventListener('change',()=>{if(seleccionarEmpresa($('disp-emp').value,'disp'))nxDisp();});
 
 /* ---------- Bancos y cajas: todas las cuentas de la empresa, con ingresos/egresos que se cargan en Netegia ---------- */
 (function(){
-  if(!$('t-bancos')) return; let BK=null,RB=null,SEL='';
+  if(!$('t-bancos')) return; let BK=null,RB=null,SEL='',cargaId=0;
   const h=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const base=n=>String(n||'').replace(/\s*(U\$S|U\$D|USD|DOLAR(ES)?)\s*$/i,'').trim();
   const fmtU=x=>'US$ '+Number(x||0).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
   const empB=()=>$('bk-emp').value||(S&&S.empresa)||'Centopex';const soloLect=()=>!!(S&&S.empresa)&&empB()!==S.empresa;
-  async function cargar(){$('bk-st').textContent='Leyendo cajas y bancos de Netegia…';try{if(!(S&&S.empresa)){window.EMP_DIR=$('bk-emp').value;}try{NXREF=null;}catch(_){}
-    const ro=soloLect();const [j,R]=await Promise.all([api('bancosNetegia',{empresa:empB(),dias:30}),ro?Promise.resolve({cajas:[],bancos:[],gastos:[]}):nxRef()]);BK=j;RB=R;if(j.empresa)$('bk-emp').value=j.empresa;pintar();$('bk-st').textContent=j.empresa+' · saldos al día · movimientos de los últimos 30 días.';}catch(e){$('bk-st').textContent='Error: '+(e&&e.message?e.message:errMsg(e));}}
+  function limpiar(){cargaId++;BK=null;RB=null;SEL='';$('bk-cards').replaceChildren();$('bk-det').replaceChildren();$('bk-st').textContent='Empresa: '+empB()+'. Actualizá para consultar las cuentas.';}
+  async function cargar(){
+    const id=++cargaId,empresa=empB();$('bk-st').textContent='Leyendo cajas y bancos de '+empresa+'…';
+    try{
+      const ro=soloLect();const [j,R]=await Promise.all([api('bancosNetegia',{empresa,dias:30}),ro?Promise.resolve({cajas:[],bancos:[],gastos:[]}):nxRef()]);
+      if(id!==cargaId||empresa!==empB())return;
+      if(j.empresa&&j.empresa!==empresa)throw new Error('La respuesta corresponde a otra empresa. Volvé a consultar.');
+      BK=j;RB=R;pintar();$('bk-st').textContent=empresa+' · saldos al día · movimientos de los últimos 30 días.';
+    }catch(e){if(id===cargaId)$('bk-st').textContent='Error: '+(e&&e.message?e.message:errMsg(e));}
+  }
   function cuentas(){const m={};const add=(t,n)=>{const k=t+':'+(t==='B'?base(n):n);return m[k]=m[k]||{key:k,tipo:t,cuenta:t==='B'?base(n):n,ARS:null,USD:null};};
     const ro=soloLect();const fija=(S&&S.empresa)&&!ro&&window.CAJA_FIJA;
     (RB&&RB.cajas||[]).forEach(c=>{if(fija&&c.nombre!==fija)return;const x=add('C',c.nombre);if(x.ARS==null)x.ARS=0;});
@@ -1072,8 +1114,12 @@ setInterval(()=>{const e=(S&&S.empresa)||window.EMP_DIR||'Centopex';const t=e+' 
       const r=(j.res||[])[0]||{};if(!r.ok)throw new Error(r.error||('HTTP '+r.code));$('bk-st2').textContent='✓ Cargado en Netegia.';await cargar();}
     catch(x){$('bk-st2').textContent='Error: '+(x&&x.message?x.message:errMsg(x));}finally{b.disabled=false;}});
   $('bk-act').addEventListener('click',cargar);
-  $('bk-emp').addEventListener('change',()=>{SEL='';cargar();});
-  {const tb=document.querySelector('[data-tab="bancos"]');if(tb){tb.textContent='Bancos y cajas';tb.addEventListener('click',()=>{if(!(S&&S.empresa)&&window.EMP_DIR)$('bk-emp').value=window.EMP_DIR;if(!BK)cargar();});}}
+  $('bk-emp').addEventListener('change',()=>{
+    if(!(S&&S.empresa)&&!seleccionarEmpresa(empB(),'bancos'))return;
+    limpiar();cargar();
+  });
+  document.addEventListener('caja-empresa',e=>{limpiar();if(!e.detail.inicial&&e.detail.origen!=='bancos'&&!$('t-bancos').hidden)cargar();});
+  {const tb=document.querySelector('[data-tab="bancos"]');if(tb){tb.textContent='Bancos y cajas';tb.addEventListener('click',()=>{if(!(S&&S.empresa)&&window.EMP_DIR)$('bk-emp').value=window.EMP_DIR;if(!BK||BK.empresa!==empB())cargar();});}}
 })();
 
 /* ---------- Pasar fondos y egresos de banco (se cargan en Netegia) ---------- */
@@ -1124,7 +1170,7 @@ let NX=null;
 const nxEmpresa=()=>(S&&S.empresa)||window.EMP_DIR||'Centopex';
 const nxLocal=iso=>{try{return new Date(iso).toLocaleString('sv-SE',{timeZone:'America/Argentina/Buenos_Aires'}).replace(' ','T').slice(0,16);}catch(e){return '';}};
 const nxFechaTxt=f=>{if(!f)return '—';const d=String(f).slice(0,16).replace('T',' ');const [a,b]=d.split(' ');return fdate(a)+(b?' '+b:'');};
-async function nxSaldos(caja,desde){const j=await api('saldosNetegia',{empresa:nxEmpresa(),caja,desde});NX=j.saldos;return NX;}
+async function nxSaldos(caja,desde){const empresa=nxEmpresa(),rev=EMP_REV;const j=await api('saldosNetegia',{empresa,caja,desde});if(empresa!==nxEmpresa()||rev!==EMP_REV)throw new Error('Cambió la empresa. Volvé a consultar.');NX=j.saldos;return NX;}
 function nxLlenarCajas(){const sel=$('nx-caja');if(!NX)return;const actual=sel.value;const nombres=[...new Set(NX.cajas.map(c=>c.cuenta))].sort();sel.replaceChildren(...nombres.map(n=>el('option',{text:n,value:n})));sel.value=nombres.includes(actual)?actual:(nombres.includes('CAJA BENAVIDEZ')?'CAJA BENAVIDEZ':nombres[0]||'');}
 $('nx-traer').addEventListener('click',async()=>{
   const prev=ultimoArqueo(CUR);
@@ -1133,6 +1179,7 @@ $('nx-traer').addEventListener('click',async()=>{
   $('nx-traer').disabled=true;$('nx-status').textContent='Consultando Netegia…';
   try{
     await nxSaldos(caja,desde);nxLlenarCajas();
+    if($('nx-caja').value!==caja){$('nx-status').textContent='Seleccioná una caja activa y volvé a tocar "Traer de Netegia".';return;}
     const s=m=>{const c=NX.cajas.find(x=>x.cuenta===caja&&x.moneda===m);return c?c.saldo:0;};
     $('saldo-sistema').value=String(s('ARS')).replace('.',',');$('usd-sistema').value=String(s('USD')).replace('.',',');
     const ya=new Set([...document.querySelectorAll('#t-caja input[data-k=recibo],#t-caja input[data-k=comprobante]')].map(i=>i.value.trim()).filter(Boolean));
@@ -1698,13 +1745,17 @@ function renderAll(resetArqueo){
 
 /* ---------- Caja por empresa (Centopex / Centonara) ---------- */
 (function(){
-  window.CAJA_EMP='Centopex'; let ROLC='caja', FIJA=false;
+  try{window.EMP_DIR=sessionStorage.getItem('empDir')||'Centopex';}catch(_){}
+  window.CAJA_EMP=window.EMP_DIR||'Centopex'; let ROLC='caja', FIJA=false;
   const filtrar=()=>{ if(!D||!D.arqueos)return; if(!D.__arqAll||D.__arqRef!==D.arqueos){D.__arqAll=D.arqueos.slice();} D.arqueos=D.__arqAll.filter(a=>(a.empresa||'Centopex')===window.CAJA_EMP); D.__arqRef=D.arqueos; };
-  const titulo=()=>{const h1=document.querySelector('h1');if(!h1)return;let b=h1.querySelector('.caja-badge');if(!b){b=document.createElement('span');b.className='caja-badge';h1.append(b);}b.textContent=window.CAJA_EMP;};
+  const titulo=()=>empresaControles();
   function pintarSel(){const s=document.getElementById('caja-emp');if(!s)return;s.hidden=FIJA;s.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.emp===window.CAJA_EMP)));titulo();}
-  document.querySelectorAll('#caja-emp button').forEach(b=>b.addEventListener('click',()=>{ if(window.CAJA_EMP===b.dataset.emp)return; if(typeof dirty!=='undefined'&&dirty&&!confirm('Hay cambios sin guardar. ¿Cambiar de caja igual?'))return; window.CAJA_EMP=b.dataset.emp; D.arqueos=D.__arqAll||D.arqueos; D.__arqRef=null; renderAll(); try{loadDate(today());}catch(e){} pintarSel(); }));
+  document.querySelectorAll('#caja-emp button').forEach(b=>b.addEventListener('click',()=>{seleccionarEmpresa(b.dataset.emp,'caja');pintarSel();}));
   if(typeof renderAll==='function'){const _r=renderAll;renderAll=function(){try{filtrar();}catch(e){}return _r.apply(this,arguments);};}
-  if(typeof enter==='function'){const _e=enter;enter=function(j){ROLC=(j&&j.rol)||'caja';FIJA=ROLC==='cajero';if(j&&j.empresa)window.CAJA_EMP=j.empresa;const r=_e.apply(this,arguments);
+  if(typeof enter==='function'){const _e=enter;enter=function(j){ROLC=(j&&j.rol)||'caja';FIJA=ROLC==='cajero';
+    S.empresa=(j&&j.empresa)||'';window.CAJA_FIJA=(j&&j.caja)||'';
+    let emp=S.empresa||window.CAJA_EMP;try{if(!S.empresa)emp=sessionStorage.getItem('empDir')||emp;}catch(_){}
+    seleccionarEmpresa(emp,'inicio',true);const r=_e.apply(this,arguments);
     try{ if(ROLC==='cajero'){document.querySelectorAll('[role="tab"][data-tab]').forEach(t=>{t.hidden=!(t.dataset.tab==='caja'||(j&&j.verDisp&&(t.dataset.tab==='disp'||t.dataset.tab==='bancos')));});
  window.VERDISP=!!(j&&j.verDisp); {const l=$('nx-emp-l');if(l)l.hidden=true;const l2=$('bk-emp-l');if(l2){l2.hidden=!(j&&j.verDisp);const se=$('bk-emp');if(se&&j&&j.empresa)se.value=j.empresa;}const l3=$('disp-emp-l');if(l3)l3.hidden=true;}
  if(j&&j.caja){window.CAJA_FIJA=j.caja;const s=$('nx-caja');if(s){const fija=()=>{if(![...s.options].some(o=>o.value===j.caja))s.append(new Option(j.caja,j.caja));if(s.value!==j.caja)s.value=j.caja;s.disabled=true;};fija();new MutationObserver(fija).observe(s,{childList:true});}}const b=document.querySelector('[data-tab="caja"]');b&&b.click();} pintarSel(); }catch(e){} return r;};}
