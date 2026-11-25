@@ -1034,7 +1034,7 @@ function seleccionarEmpresa(emp,origen,inicial){
   const anterior=(S&&S.empresa)||window.CAJA_EMP||'Centopex';
   if(!['Centopex','Centonara'].includes(emp)||((S&&S.empresa)&&emp!==S.empresa)){empresaControles();return false;}
   const cambio=emp!==anterior;
-  if(!inicial&&cambio&&(NXSYNC||$('nx-traer').disabled||$('mv-ok').disabled||$('guardar').disabled)){
+  if(!inicial&&cambio&&(NXSYNC||($('nx-traer').disabled&&!$('guardar').hidden)||$('mv-ok').disabled||$('guardar').disabled)){
     empresaControles();alert('Esperá a que termine la operación actual antes de cambiar de empresa.');return false;
   }
   if(!inicial&&cambio&&dirty&&!confirm('Hay cambios sin guardar en el arqueo. ¿Cambiar de empresa y descartarlos?')){
