@@ -1036,7 +1036,7 @@ setInterval(()=>{const e=(S&&S.empresa)||window.EMP_DIR||'Centopex';const t=e+' 
   const fmtU=x=>'US$ '+Number(x||0).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
   const empB=()=>$('bk-emp').value||(S&&S.empresa)||'Centopex';const soloLect=()=>!!(S&&S.empresa)&&empB()!==S.empresa;
   async function cargar(){$('bk-st').textContent='Leyendo cajas y bancos de Netegia…';try{if(!(S&&S.empresa)){window.EMP_DIR=$('bk-emp').value;}try{NXREF=null;}catch(_){}
-    const ro=soloLect();const [j,R]=await Promise.all([api('bancosNetegia',{empresa:empB(),dias:30}),ro?Promise.resolve({cajas:[],bancos:[],gastos:[]}):nxRef()]);BK=j;RB=R;pintar();$('bk-st').textContent=j.empresa+' · saldos al día · movimientos de los últimos 30 días.';}catch(e){$('bk-st').textContent=errMsg(e);}}
+    const ro=soloLect();const [j,R]=await Promise.all([api('bancosNetegia',{empresa:empB(),dias:30}),ro?Promise.resolve({cajas:[],bancos:[],gastos:[]}):nxRef()]);BK=j;RB=R;if(j.empresa)$('bk-emp').value=j.empresa;pintar();$('bk-st').textContent=j.empresa+' · saldos al día · movimientos de los últimos 30 días.';}catch(e){$('bk-st').textContent='Error: '+(e&&e.message?e.message:errMsg(e));}}
   function cuentas(){const m={};const add=(t,n)=>{const k=t+':'+(t==='B'?base(n):n);return m[k]=m[k]||{key:k,tipo:t,cuenta:t==='B'?base(n):n,ARS:null,USD:null};};
     const ro=soloLect();const fija=(S&&S.empresa)&&!ro&&window.CAJA_FIJA;
     (RB&&RB.cajas||[]).forEach(c=>{if(fija&&c.nombre!==fija)return;const x=add('C',c.nombre);if(x.ARS==null)x.ARS=0;});
@@ -1065,12 +1065,12 @@ setInterval(()=>{const e=(S&&S.empresa)||window.EMP_DIR||'Centopex';const t=e+' 
     const esCaja=SEL.startsWith('C:'),nom=SEL.slice(2);let cta;
     if(esCaja)cta=(RB.cajas||[]).find(x=>x.nombre===nom);else cta=(RB.bancos||[]).find(x=>base(x.nombre)===nom&&!!x.usd===(mon==='USD'));
     if(!cta){$('bk-st2').textContent=esCaja?'No encontré la caja en Netegia.':'Este banco no tiene cuenta en '+(mon==='USD'?'dólares':'pesos')+' en Netegia.';return;}
-    if(!confirm((tipo==='EGRESO'?'Egreso':'Ingreso')+' de '+(mon==='USD'?fmtU(monto):fmt(monto))+' en '+(esCaja?'caja ':'')+cta.nombre+' ('+empB()+')'+(det?' · '+det:'')+'. ¿Lo cargo en Netegia?'))return;
+    if(!confirm((tipo==='EGRESO'?'Egreso':'Ingreso')+' de '+(mon==='USD'?fmtU(monto):fmt(monto))+' en '+(esCaja?'caja ':'')+cta.nombre+' ('+((BK&&BK.empresa)||empB())+')'+(det?' · '+det:'')+'. ¿Lo cargo en Netegia?'))return;
     b.disabled=true;$('bk-st2').textContent='Cargando en Netegia…';
     try{const k='bk-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,6);const quien=(S&&S.usuario)||'';
-      const j=await api('egresosNetegia',{empresa:empB(),items:[{clave:k,mov:tipo,tipo:esCaja?'CAJA':'BANCO',cuentaId:cta.id,cuentaGastoId:$('bk-g').value?+$('bk-g').value:null,monto,moneda:mon,fecha:today()+'T'+new Date().toTimeString().slice(0,8),obs:(det||((tipo==='EGRESO'?'Egreso':'Ingreso')+(esCaja?' de caja':' de banco')))+' · '+quien}]});
+      const j=await api('egresosNetegia',{empresa:(BK&&BK.empresa)||empB(),items:[{clave:k,mov:tipo,tipo:esCaja?'CAJA':'BANCO',cuentaId:cta.id,cuentaGastoId:$('bk-g').value?+$('bk-g').value:null,monto,moneda:mon,fecha:today()+'T'+new Date().toTimeString().slice(0,8),obs:(det||((tipo==='EGRESO'?'Egreso':'Ingreso')+(esCaja?' de caja':' de banco')))+' · '+quien}]});
       const r=(j.res||[])[0]||{};if(!r.ok)throw new Error(r.error||('HTTP '+r.code));$('bk-st2').textContent='✓ Cargado en Netegia.';await cargar();}
-    catch(x){$('bk-st2').textContent='Error: '+errMsg(x);}finally{b.disabled=false;}});
+    catch(x){$('bk-st2').textContent='Error: '+(x&&x.message?x.message:errMsg(x));}finally{b.disabled=false;}});
   $('bk-act').addEventListener('click',cargar);
   $('bk-emp').addEventListener('change',()=>{SEL='';cargar();});
   {const tb=document.querySelector('[data-tab="bancos"]');if(tb){tb.textContent='Bancos y cajas';tb.addEventListener('click',()=>{if(!(S&&S.empresa)&&window.EMP_DIR)$('bk-emp').value=window.EMP_DIR;if(!BK)cargar();});}}
