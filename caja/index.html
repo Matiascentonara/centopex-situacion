@@ -199,7 +199,7 @@ h1,h2,h3{letter-spacing:-.01em}
 <div class="wrap" id="v-app" hidden>
   <header class="top">
     <div>
-      <h1>Centopex · caja y flujo de fondos</h1>
+      <h1 id="app-tit">Centopex · caja y flujo de fondos</h1>
       <p class="sub">Disponible hoy: <b id="h-disp">—</b> · Último arqueo: <span id="h-arq">—</span></p>
     </div>
     <div class="who"><span id="h-user"></span><button type="button" id="cambiar-clave">Cambiar clave</button><button type="button" id="refrescar">Actualizar</button><button type="button" id="salir">Salir</button></div>
@@ -1016,6 +1016,9 @@ async function nxSyncEgresos(){
     dirty=true;calc();$('nx-egr-status').textContent=ok+' cargado(s) en Netegia'+(ya?', '+ya+' ya estaba(n)':'')+(er?', '+er+' con error':'')+'. Guardá el arqueo para dejar registrado el estado.';}
   catch(e){$('nx-egr-status').textContent=errMsg(e);}finally{NXSYNC=false;$('nx-egr-sync').disabled=false;}}
 $('nx-egr-sync').addEventListener('click',()=>{nxRef().then(nxSyncEgresos).catch(e=>{$('nx-egr-status').textContent=errMsg(e);});});
+
+/* ---------- Título con la empresa en uso (Centopex o Centonara) ---------- */
+setInterval(()=>{const e=(S&&S.empresa)||window.EMP_DIR||'Centopex';const t=e+' · caja y flujo de fondos';const h=$('app-tit');if(h&&h.textContent!==t)h.textContent=t;if(document.title!==t)document.title=t;},700);
 
 /* ---------- Empresa en Disponibilidades (solo directores) ---------- */
 (function(){const s=$('disp-emp');if(!s)return;try{const v=sessionStorage.getItem('empDir');if(v)s.value=v;}catch(_){}
