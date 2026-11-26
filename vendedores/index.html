@@ -1664,7 +1664,7 @@ render();
       try{sessionStorage.setItem('vl',JSON.stringify(S));}catch(e){}
       if(window.__VL_LISTO){try{sessionStorage.setItem('vl-ok','1');}catch(e){} location.reload();return;}
       window.__VL_LISTO=true;
-      var DS=window.__DS; ['resumen','pendientes','productos','detalleCodigos'].forEach(function(k){DS[k]=j.ds[k]||[];});
+      var DS=window.__DS; ['resumen','pendientes','productos','detalleCodigos'].forEach(function(k){DS[k]=j.ds[k]||[];});try{window.__COBANT=j.ds.cobradoAnterior||[];window.__COBANT_MES=j.ds.mes;if(window.pintarCobAnt)window.pintarCobAnt();}catch(e){}
       window.AUTH={email:S.u,name:S.nombre||S.u,role:j.rol==='director'?'admin':'seller',seller:j.rol==='director'?null:(j.seller||null),active:1,id:S.u,csrf:'same-origin'};window.SERVER_REV=1;window.CLOSED=[];
       var est=j.estado||{},ep=document.getElementById('cn-payment-state'),em=document.getElementById('cn-month-state');
       if(ep&&est.pagos)ep.textContent=est.pagos; if(em&&est.mensual)em.textContent=est.mensual;
@@ -1692,5 +1692,10 @@ render();
 })();
 
 ;(function(){var o=document.getElementById('vl-olv');if(!o)return;o.addEventListener('click',function(){var u=((document.getElementById('vl-u')||{}).value||prompt('Escribí tu usuario')||'').trim().toLowerCase();if(!u)return;fetch('https://script.google.com/macros/s/AKfycbzlIaEbpmjCZqHUJhNFgEP8hk2tO6fFvHJTtUMpLbbITNIYU_f90N-T6FPi-0AZprua7A/exec',{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'olvideClave',usuario:u})}).catch(function(){});alert('Listo: avisamos a la administración. Te van a pasar una clave nueva para entrar.');});})();
+
+;window.pintarCobAnt=function(){var l=window.__COBANT||[];var b=document.getElementById('vl-cobant');if(!b){b=document.createElement('div');b.id='vl-cobant';b.style.cssText='margin:10px auto;max-width:1200px;padding:12px 16px;border:2px solid #2e7d32;border-radius:12px;background:#f1f8f1;font:14px system-ui';var bar=document.getElementById('vl-bar');(bar&&bar.parentNode?bar.parentNode:document.body).insertBefore(b,bar?bar.nextSibling:document.body.firstChild);}
+ if(!l.length){b.innerHTML='<b>Cobrado este mes de meses anteriores:</b> nada por ahora. Cuando se cobre una factura que quedó pendiente de un mes anterior, aparece acá y su comisión se suma a este mes.';return;}
+ var f=function(n){return '$ '+Math.round(n).toLocaleString('es-AR');};var tot=l.reduce(function(a,x){return a+x.comision;},0);var dd=function(s){return s?s.slice(8,10)+'/'+s.slice(5,7):'';};
+ b.innerHTML='<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px"><b style="color:#2e7d32;font-size:15px">✓ Cobrado este mes de meses anteriores · '+l.length+' factura(s)</b><b>Comisión que se libera: '+f(tot)+'</b></div><div style="overflow:auto;margin-top:6px"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="text-align:left;border-bottom:1px solid #cfe3cf"><th>Vendedor</th><th>Empresa</th><th>Factura</th><th>Cliente</th><th>Fecha factura</th><th style="text-align:right">Total</th><th>Cobrada el</th><th style="text-align:right">Comisión</th></tr></thead><tbody>'+l.map(function(x){return '<tr style="border-bottom:1px solid #e3efe3"><td>'+x.vendedor+'</td><td>'+x.empresa+'</td><td>'+x.factura+'</td><td>'+x.cliente+'</td><td>'+dd(x.fechaFactura)+'</td><td style="text-align:right">'+f(x.total)+'</td><td>'+dd(x.cobradoEl)+(x.aprox?' <small title="Fecha estimada por el recibo del cliente">(aprox.)</small>':'')+'</td><td style="text-align:right"><b>'+f(x.comision)+'</b></td></tr>';}).join('')+'</tbody></table></div>';};
 </script>
 </body></html>
